@@ -12,7 +12,7 @@ class BGPFeatures:
         self.last_reset = time.time()
     
     @property
-    def announcements_and_withdrawals_count(self):
+    def nb_A_W(self):
         return self.nb_A + self.nb_W
 
     def classify_elem(self, elementType):
