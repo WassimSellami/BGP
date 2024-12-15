@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from bgp_features import BGPFeatures
 TIME_WINDOW = 30
 
-TRAINING_FEATURES_FILENAME = "training_features"
-FROM_TIME = datetime.strptime("2017-07-07 00:10:00", "%Y-%m-%d %H:%M:%S")
-ROW_COUNT = 5000
+TRAIN_FEATURES_FILENAME = "test_features.csv"
+FROM_TIME = datetime.strptime("2017-07-09 00:10:00", "%Y-%m-%d %H:%M:%S")
+ROW_COUNT = 200
 TIME_OFFSET  = 7200
 UNTIL_TIME = FROM_TIME + timedelta(seconds=ROW_COUNT * TIME_WINDOW)
 
@@ -36,7 +36,7 @@ for elem in stream:
             features_dict[window_index]['nb_W'] += 1
             features_dict[window_index]['nb_A_W'] = features_dict[window_index]['nb_A'] + features_dict[window_index]['nb_W']
 
-with open(TRAINING_FEATURES_FILENAME+'_'+str(datetime.now().strftime("%Y-%m-%d-%H-%M-%S")+"csv"), mode='w', newline='') as file:
+with open(TRAIN_FEATURES_FILENAME, mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['Timestamp', 'nb_A', 'nb_W', 'nb_A_W'])
     
