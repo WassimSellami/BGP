@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from tensorflow.keras.models import load_model
 from tensorflow.keras.losses import MeanSquaredError
-from tensorflow.keras.metrics import MeanSquaredError as MSE
+from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 import pickle
 
@@ -19,12 +19,15 @@ def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=1
     Returns:
         DataFrame with original and predicted values
     """
-    # Load the model with proper custom objects
-    custom_objects = {
-        'loss': MeanSquaredError(),
-        'mse': MSE()
-    }
-    model = load_model(model_path, custom_objects=custom_objects)
+    # Load the model without compilation
+    model = load_model(model_path, compile=False)
+    
+    # Recompile the model
+    model.compile(
+        optimizer=Adam(learning_rate=0.001),
+        loss=MeanSquaredError(),
+        metrics=['mse']
+    )
     
     # Load the scaler
     with open(scaler_path, 'rb') as f:

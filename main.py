@@ -9,17 +9,20 @@ from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.metrics import MeanSquaredError as MSE
 import pickle
 from collections import deque
+from tensorflow.keras.optimizers import Adam
 
 TIME_WINDOW = 5
 REAL_TIME_FEATURES_FILENAME = "real_time_bgp_features.csv"
 SEQUENCE_LENGTH = 10  # Must match the sequence length used during training
 
 # Load the model and scaler
-custom_objects = {
-    'loss': MeanSquaredError(),
-    'mse': MSE()
-}
-model = load_model('bgp_lstm_model.h5', custom_objects=custom_objects)
+model = load_model('bgp_lstm_model.h5', compile=False)  # Load without compilation
+model.compile(
+    optimizer=Adam(learning_rate=0.001),
+    loss=MeanSquaredError(),
+    metrics=['mse']
+)
+
 with open('scaler.pkl', 'rb') as f:
     scaler = pickle.load(f)
 
