@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 
-INPUT_FILE = 'train_data/rrc12-ma-5-prof.csv'
-FILTERED_OUTPUT_FILE = 'train_data/rrc12-5.csv'
-MA_OUTPUT_FILE = 'train_data/rrc12-ma-5-g3.csv'
+INPUT_FILE = 'test_data/test_rrc12-1-prof.csv'
+FILTERED_OUTPUT_FILE = 'test_data/test_rrc12-1.csv'
+MA_OUTPUT_FILE = 'test_data/test_rrc12-ma-1-g3.csv'
 
 def filter_features(input_file=INPUT_FILE):
     df = pd.read_csv(input_file)

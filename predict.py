@@ -5,6 +5,7 @@ from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 import pickle
+import os
 
 def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=10):
     """
@@ -19,6 +20,12 @@ def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=1
     Returns:
         DataFrame with original and predicted values
     """
+    # Check if model and scaler files exist
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found at {model_path}")
+    if not os.path.exists(scaler_path):
+        raise FileNotFoundError(f"Scaler file not found at {scaler_path}")
+    
     # Load the model without compilation
     model = load_model(model_path, compile=False)
     
@@ -35,10 +42,14 @@ def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=1
     
     # Read and prepare test data
     df = pd.read_csv(test_file_path)
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
     
-    # Scale the features
-    feature_columns = ['nb_A', 'nb_W', 'nb_A_W']
+    # Scale the features - update feature columns to match training data exactly
+    feature_columns = ['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma']  # Removed 'nb_A_W' as it wasn't in training
+    
+    # If nb_A_W doesn't exist in the data, calculate it
+    if 'nb_A_W' not in df.columns:
+        df['nb_A_W'] = df['nb_A'] / (df['nb_W'] + 1e-10)  # Adding small epsilon to avoid division by zero
+    
     scaled_data = scaler.transform(df[feature_columns])
     
     # Create sequences
@@ -63,13 +74,20 @@ def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=1
     return results_df
 
 if __name__ == "__main__":
-    # Prediction mode
-    test_file = 'test_features.csv'
-    results_df = predict_from_file('bgp_lstm_model.h5', test_file, 'scaler.pkl')
+    # Define paths for model and scaler from prof directory
+    model_path = os.path.join('prof', 'model', 'lstm_model.h5')
+    scaler_path = os.path.join('prof', 'scaler', 'scaler.pkl')
+    test_file = 'test_data/test_rrc12-ma-1-g3.csv'
     
-    output_file = "predictions_"+test_file
-    results_df.to_csv(output_file, index=False)
+    # Make predictions
+    results_df = predict_from_file(model_path, test_file, scaler_path)
     
+    # Save predictions to CSV
+    # output_file = f"predictions_{test_file}"
+    # results_df.to_csv(output_file, index=False)
+    # print(f"Predictions saved to {output_file}")
+    
+    # Create and save visualization
     plt.figure(figsize=(15, 6))
     plt.plot(results_df['nb_A'].iloc[10:], label='Actual nb_A', alpha=0.5)
     plt.plot(results_df['predicted_nb_A'].iloc[10:], label='Predicted nb_A', alpha=0.5)
@@ -77,5 +95,6 @@ if __name__ == "__main__":
     plt.xlabel('Time Steps')
     plt.ylabel('Number of Announcements')
     plt.legend()
-    plt.savefig('test_predictions.png')
-    plt.close() 
+    plt.savefig('prof_test_predictions.png')
+    plt.close()
+    print("Visualization saved as prof_test_predictions.png") 
