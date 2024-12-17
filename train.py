@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 import pickle
 
 # Load and prepare the data
-def prepare_data(filename, feature_columns=['nb_A', 'nb_W', 'nb_A_W'], sequence_length=10):
+def prepare_data(filename, feature_columns=['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'], sequence_length=10):
     # Read the CSV file
     df = pd.read_csv(filename)
     
     # Convert timestamp to datetime
-    df['Timestamp'] = pd.to_datetime(df['Timestamp'])
-    df.set_index('Timestamp', inplace=True)
+    # df['Timestamp'] = pd.to_datetime(df['Timestamp'])
+    # df.set_index('Timestamp', inplace=True)
     
     # Scale the features
     scaler = MinMaxScaler()
@@ -56,13 +56,13 @@ def create_model(sequence_length, n_features):
 def train_and_evaluate():
     # Parameters
     sequence_length = 10
-    feature_columns = ['nb_A', 'nb_W', 'nb_A_W']
-    epochs = 20
+    feature_columns = ['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma']
+    epochs = 4
     batch_size = 32
     
     # Prepare data
     X_train, X_test, y_train, y_test, scaler = prepare_data(
-        'train_features.csv',
+        'train_data/rrc12-ma-5-g3.csv',
         feature_columns=feature_columns,
         sequence_length=sequence_length
     )
