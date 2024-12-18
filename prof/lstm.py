@@ -33,8 +33,12 @@ def create_time_features(df, target=None):
     X = df_1
     
     if target:
-        y = df[target]
-        X = X.drop([target], axis=1)
+        if isinstance(target, list):
+            y = df[target]
+            X = X.drop(target, axis=1)
+        else:
+            y = df[target]
+            X = X.drop([target], axis=1)
         return X, y
     return X
 
@@ -55,14 +59,17 @@ def main():
     df = pd.read_csv(url, sep=',', header=0, low_memory=False, 
                     infer_datetime_format=True, parse_dates=True)
 
-    df_training, df_test = df[1:11453], df[11453:]
+    train_size = int(len(df) * 0.8)
+    
+    df_training = df[1:train_size]
+    df_test = df[train_size:]
     print(f"{len(df_training)} days of training data\n{len(df_test)} days of testing data")
 
     df_training.to_csv('training.csv')
     df_test.to_csv('test.csv')
 
-    X_train_df, y_train = create_time_features(df_training, target='nb_A_W')
-    X_test_df, y_test = create_time_features(df_test, target='nb_A_W')
+    X_train_df, y_train = create_time_features(df_training, target=['nb_A', 'nb_W'])
+    X_test_df, y_test = create_time_features(df_test, target=['nb_A', 'nb_W'])
 
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train_df)
@@ -94,7 +101,7 @@ def main():
         tf.keras.layers.LSTM(128, input_shape=X_train_w.shape[-2:], dropout=0.0),
         tf.keras.layers.Dense(128),
         tf.keras.layers.Dense(128),
-        tf.keras.layers.Dense(1)
+        tf.keras.layers.Dense(2)
     ])
     simple_lstm_model.compile(optimizer='adam', loss='mean_squared_error')
 
@@ -112,25 +119,45 @@ def main():
     simple_lstm_model.save(model_path)
     print(f"Model saved to {model_path}")
 
-    yhat = simple_lstm_model.predict(X_test_w).reshape(1, -1)[0]
+    yhat = simple_lstm_model.predict(X_test_w)
+    nb_A_pred = yhat[:, 0]
+    nb_W_pred = yhat[:, 1]
 
-    plt.figure()
-    plt.xlabel('Time steps', fontsize=23, fontweight="bold")
-    plt.ylabel('Number of Announcements', fontsize=27, fontweight="bold")
-    plt.yscale("log")
-    plt.plot(df_test['nb_A'].values[4708:4908], label='Original', linewidth=4.0, color='black')
-    plt.plot(yhat[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
-    plt.xticks(fontsize=15, fontweight="bold")
-    plt.yticks(fontsize=15, fontweight="bold")
-    plt.legend(fontsize=28, loc='upper left')
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(9, 16))
+    
+    ax1.set_xlabel('Time steps', fontsize=23, fontweight="bold")
+    ax1.set_ylabel('Number of Announcements', fontsize=27, fontweight="bold")
+    ax1.set_yscale("log")
+    ax1.plot(df_test['nb_A'].values[4708:4908], label='Original', linewidth=4.0, color='black')
+    ax1.plot(nb_A_pred[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
+    ax1.tick_params(labelsize=15)
+    ax1.legend(fontsize=28, loc='upper left')
+    ax1.set_title('nb_A Predictions', fontsize=25, fontweight="bold")
+
+    ax2.set_xlabel('Time steps', fontsize=23, fontweight="bold")
+    ax2.set_ylabel('Number of Withdrawals', fontsize=27, fontweight="bold")
+    ax2.set_yscale("log")
+    ax2.plot(df_test['nb_W'].values[4708:4908], label='Original', linewidth=4.0, color='black')
+    ax2.plot(nb_W_pred[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
+    ax2.tick_params(labelsize=15)
+    ax2.legend(fontsize=28, loc='upper left')
+    ax2.set_title('nb_W Predictions', fontsize=25, fontweight="bold")
+
     plt.tight_layout()
-    plt.savefig('prof/prediction_results.png', dpi=300, bbox_inches='tight')
+    plt.savefig('prediction_results/train.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-    print("RMSE : ", np.sqrt(mean_squared_error(df_test['nb_A'], yhat)), end=",     ")
-    print("MAE: ", mean_absolute_error(df_test['nb_A'], yhat), end=",     ")
-    print("MAPE : ", mean_absolute_percentage_error(df_test['nb_A'], yhat), end=",     ")
-    print("r2 : ", r2_score(df_test['nb_A'], yhat))
+    print("Metrics for nb_A:")
+    print("RMSE : ", np.sqrt(mean_squared_error(df_test['nb_A'], nb_A_pred)), end=",     ")
+    print("MAE: ", mean_absolute_error(df_test['nb_A'], nb_A_pred), end=",     ")
+    print("MAPE : ", mean_absolute_percentage_error(df_test['nb_A'], nb_A_pred), end=",     ")
+    print("r2 : ", r2_score(df_test['nb_A'], nb_A_pred))
+
+    print("\nMetrics for nb_W:")
+    print("RMSE : ", np.sqrt(mean_squared_error(df_test['nb_W'], nb_W_pred)), end=",     ")
+    print("MAE: ", mean_absolute_error(df_test['nb_W'], nb_W_pred), end=",     ")
+    print("MAPE : ", mean_absolute_percentage_error(df_test['nb_W'], nb_W_pred), end=",     ")
+    print("r2 : ", r2_score(df_test['nb_W'], nb_W_pred))
 
 if __name__ == "__main__":
     main()

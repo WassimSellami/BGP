@@ -4,97 +4,120 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import pickle
 import os
 
-def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=10):
-    """
-    Make predictions using a saved model on new test data
+SAMPLE_SIZE = 500
+
+def create_time_features(df, target=None):
+    df_1 = pd.DataFrame(df, columns=['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'])
+    X = df_1
     
-    Args:
-        model_path: Path to the saved model (.h5 file)
-        test_file_path: Path to the test features CSV file
-        scaler_path: Path to the saved scaler (.pkl file)
-        sequence_length: Length of input sequences
-        
-    Returns:
-        DataFrame with original and predicted values
-    """
-    # Check if model and scaler files exist
-    if not os.path.exists(model_path):
-        raise FileNotFoundError(f"Model file not found at {model_path}")
-    if not os.path.exists(scaler_path):
-        raise FileNotFoundError(f"Scaler file not found at {scaler_path}")
+    if target:
+        if isinstance(target, list):
+            y = df[target]
+            X = X.drop(target, axis=1)
+        else:
+            y = df[target]
+            X = X.drop([target], axis=1)
+        return X, y
+    return X
+
+def window_data(X, window=24):
+    x = []
+    for i in range(window-1, len(X)):
+        x.append(X[i-window+1:i+1])
+    return np.array(x)
+
+def mean_absolute_percentage_error(y_true, y_pred):
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=24):
+    df_test = pd.read_csv(test_file_path, sep=',', header=0, low_memory=False,
+                         parse_dates=True)
     
-    # Load the model without compilation
-    model = load_model(model_path, compile=False)
+    X_test_df, y_test = create_time_features(df_test, target=['nb_A', 'nb_W'])
     
-    # Recompile the model
-    model.compile(
-        optimizer=Adam(learning_rate=0.001),
-        loss=MeanSquaredError(),
-        metrics=['mse']
-    )
-    
-    # Load the scaler
     with open(scaler_path, 'rb') as f:
         scaler = pickle.load(f)
+    X_test = scaler.transform(X_test_df)
     
-    # Read and prepare test data
-    df = pd.read_csv(test_file_path)
+    X_test_w = window_data(X_test, window=sequence_length)
     
-    # Scale the features - update feature columns to match training data exactly
-    feature_columns = ['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma']  # Removed 'nb_A_W' as it wasn't in training
+    model = load_model(model_path)
+    predictions = model.predict(X_test_w)
+    nb_A_pred = predictions[:, 0]
+    nb_W_pred = predictions[:, 1]
     
-    # If nb_A_W doesn't exist in the data, calculate it
-    if 'nb_A_W' not in df.columns:
-        df['nb_A_W'] = df['nb_A'] / (df['nb_W'] + 1e-10)  # Adding small epsilon to avoid division by zero
+    original_nb_A = df_test['nb_A'].values[sequence_length-1:]
+    original_nb_W = df_test['nb_W'].values[sequence_length-1:]
     
-    scaled_data = scaler.transform(df[feature_columns])
+    start_idx = max(0, len(nb_A_pred) - SAMPLE_SIZE)
+    end_idx = len(nb_A_pred)
     
-    # Create sequences
-    X = []
-    for i in range(len(scaled_data) - sequence_length):
-        X.append(scaled_data[i:(i + sequence_length)])
-    X = np.array(X)
+    plt.figure(figsize=(15, 6))
+    plt.xlabel('Time Steps')
+    plt.ylabel('Number of Announcements')
+    plt.title('BGP Updates Prediction - Test Set')
     
-    # Make predictions
-    predictions = model.predict(X)
+    plt.plot(original_nb_A[start_idx:end_idx], 
+             label='Actual nb_A', linewidth=1.0, color='blue', alpha=0.8)
+    plt.plot(nb_A_pred[start_idx:end_idx], 
+             label='Predicted nb_A', linewidth=1.0, color='orange', alpha=0.8)
     
-    # Inverse transform predictions
-    predictions = scaler.inverse_transform(predictions)
+    plt.legend()
+    plt.tight_layout()
     
-    # Create results DataFrame
-    results_df = df.copy()
+    test_file_name = os.path.splitext(os.path.basename(test_file_path))[0]
     
-    # Add predicted values (shifted by sequence_length due to the sequence requirement)
-    results_df.loc[sequence_length:, 'predicted_nb_A'] = predictions[:, 0]
-    results_df.loc[sequence_length:, 'predicted_nb_W'] = predictions[:, 1]
+    if not os.path.exists('prediction_results'):
+        os.makedirs('prediction_results')
+    
+    plt.savefig(f'prediction_results/{test_file_name}_nb_A.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    plt.figure(figsize=(15, 6))
+    plt.xlabel('Time Steps')
+    plt.ylabel('Number of Withdrawals')
+    plt.title('BGP Updates Prediction - Test Set')
+    
+    plt.plot(original_nb_W[start_idx:end_idx], 
+             label='Actual nb_W', linewidth=1.0, color='blue', alpha=0.8)
+    plt.plot(nb_W_pred[start_idx:end_idx], 
+             label='Predicted nb_W', linewidth=1.0, color='orange', alpha=0.8)
+    
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(f'prediction_results/{test_file_name}_nb_W.png', dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    print("Metrics for Announcements:")
+    print("RMSE : ", np.sqrt(mean_squared_error(original_nb_A, nb_A_pred)), end=",     ")
+    print("MAE: ", mean_absolute_error(original_nb_A, nb_A_pred), end=",     ")
+    print("MAPE : ", mean_absolute_percentage_error(original_nb_A, nb_A_pred), end=",     ")
+    print("r2 : ", r2_score(original_nb_A, nb_A_pred))
+
+    print("\nMetrics for Withdrawals:")
+    print("RMSE : ", np.sqrt(mean_squared_error(original_nb_W, nb_W_pred)), end=",     ")
+    print("MAE: ", mean_absolute_error(original_nb_W, nb_W_pred), end=",     ")
+    print("MAPE : ", mean_absolute_percentage_error(original_nb_W, nb_W_pred), end=",     ")
+    print("r2 : ", r2_score(original_nb_W, nb_W_pred))
+    
+    results_df = pd.DataFrame({
+        'original_nb_A': original_nb_A,
+        'predicted_nb_A': nb_A_pred,
+        'original_nb_W': original_nb_W,
+        'predicted_nb_W': nb_W_pred
+    })
     
     return results_df
 
 if __name__ == "__main__":
-    # Define paths for model and scaler from prof directory
     model_path = os.path.join('prof', 'model', 'lstm_model.h5')
     scaler_path = os.path.join('prof', 'scaler', 'scaler.pkl')
-    test_file = 'test_data/test_rrc12-ma-1-g3.csv'
+    test_file = os.path.join('test_data', 'test_rrc12-ma-1-g3.csv')
     
-    # Make predictions
     results_df = predict_from_file(model_path, test_file, scaler_path)
     
-    # Save predictions to CSV
-    # output_file = f"predictions_{test_file}"
-    # results_df.to_csv(output_file, index=False)
-    # print(f"Predictions saved to {output_file}")
-    
-    # Create and save visualization
-    plt.figure(figsize=(15, 6))
-    plt.plot(results_df['nb_A'].iloc[10:], label='Actual nb_A', alpha=0.5)
-    plt.plot(results_df['predicted_nb_A'].iloc[10:], label='Predicted nb_A', alpha=0.5)
-    plt.title('Actual vs Predicted Announcements')
-    plt.xlabel('Time Steps')
-    plt.ylabel('Number of Announcements')
-    plt.legend()
-    plt.savefig('prof_test_predictions.png')
-    plt.close()
-    print("Visualization saved as prof_test_predictions.png") 
