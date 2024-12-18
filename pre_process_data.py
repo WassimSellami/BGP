@@ -20,19 +20,30 @@ def filter_features(input_file=INPUT_FILE):
 
 def create_moving_average_features(df, window_size=10):
     """
+    Calculate moving averages using available data up to window_size
+    
     Args:
         df: pandas DataFrame with the filtered features
-        window_size: size of the moving average window
+        window_size: maximum size of the moving average window
     """
     df_ma = df.copy()
-    df_ma['nb_A_ma'] = df_ma['nb_A'].rolling(window=window_size).mean()
-    df_ma['nb_W_ma'] = df_ma['nb_W'].rolling(window=window_size).mean()
-    df_ma = df_ma.dropna()
+    
+    # For each row, use min(window_size, available_rows) for the moving average
+    for i in range(len(df_ma)):
+        start_idx = max(0, i - window_size + 1)
+        window_data_A = df_ma['nb_A'].iloc[start_idx:i+1]
+        window_data_W = df_ma['nb_W'].iloc[start_idx:i+1]
+        
+        df_ma.loc[df_ma.index[i], 'nb_A_ma'] = window_data_A.mean()
+        df_ma.loc[df_ma.index[i], 'nb_W_ma'] = window_data_W.mean()
+    
     df_ma = df_ma.round(2)
     
-    df_ma.to_csv(MA_OUTPUT_FILE, index=False)
-    print(f"Data with moving average saved to {MA_OUTPUT_FILE}")
-    print(f"Shape of data with moving average: {df_ma.shape}")
+    if MA_OUTPUT_FILE:
+        df_ma.to_csv(MA_OUTPUT_FILE, index=False)
+        print(f"Data with moving average saved to {MA_OUTPUT_FILE}")
+        print(f"Shape of data with moving average: {df_ma.shape}")
+    
     return df_ma
 
 if __name__ == "__main__":
