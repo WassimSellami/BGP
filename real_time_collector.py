@@ -2,11 +2,17 @@ import pybgpstream
 import csv
 import time
 from bgp_features import BGPFeatures
-
-TIME_WINDOW = 5
-REAL_TIME_FEATURES_FILENAME = "output/real_time_collector.csv"
-CHOSEN_COLLECTOR = "rrc12"
-MA_WINDOW = 10
+from constants import (
+    TIME_WINDOW,
+    MA_WINDOW,
+    CHOSEN_COLLECTOR,
+    REAL_TIME_COLLECTOR_FILENAME as REAL_TIME_FEATURES_FILENAME,
+    FEATURE_NB_A,
+    FEATURE_NB_W,
+    FEATURE_NB_A_W,
+    FEATURE_NB_A_MA,
+    FEATURE_NB_W_MA
+)
 
 def calculate_moving_average(records, field, window_size):
     if not records:
@@ -25,7 +31,7 @@ last_save_time = time.time()
 
 with open(REAL_TIME_FEATURES_FILENAME, mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'])
+    writer.writerow([FEATURE_NB_A, FEATURE_NB_W, FEATURE_NB_A_W, FEATURE_NB_A_MA, FEATURE_NB_W_MA])
 
 recent_records = []
 
@@ -36,9 +42,9 @@ for elem in stream:
         
         if current_time - last_save_time >= TIME_WINDOW:
             current_record = {
-                'nb_A': features.nb_A,
-                'nb_W': features.nb_W,
-                'nb_A_W': features.nb_A_W
+                FEATURE_NB_A: features.nb_A,
+                FEATURE_NB_W: features.nb_W,
+                FEATURE_NB_A_W: features.nb_A_W
             }
             
             recent_records.append(current_record)
@@ -46,15 +52,15 @@ for elem in stream:
             if len(recent_records) > MA_WINDOW:
                 recent_records.pop(0)
             
-            nb_A_ma = calculate_moving_average(recent_records, 'nb_A', MA_WINDOW)
-            nb_W_ma = calculate_moving_average(recent_records, 'nb_W', MA_WINDOW)
+            nb_A_ma = calculate_moving_average(recent_records, FEATURE_NB_A, MA_WINDOW)
+            nb_W_ma = calculate_moving_average(recent_records, FEATURE_NB_W, MA_WINDOW)
             
             with open(REAL_TIME_FEATURES_FILENAME, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([
-                    current_record['nb_A'],
-                    current_record['nb_W'],
-                    current_record['nb_A_W'],
+                    current_record[FEATURE_NB_A],
+                    current_record[FEATURE_NB_W],
+                    current_record[FEATURE_NB_A_W],
                     nb_A_ma,
                     nb_W_ma
                 ])

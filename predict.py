@@ -7,11 +7,22 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import pickle
 import os
+from constants import (
+    FEATURE_NB_A,
+    FEATURE_NB_A_MA,
+    FEATURE_NB_A_W,
+    FEATURE_NB_W,
+    FEATURE_NB_W_MA,
+    SEQUENCE_LENGTH,
+    MODEL_PATH,
+    SCALER_PATH,
+    TEST_DATA_DIR
+)
 
 SAMPLE_SIZE = 500
 
 def create_time_features(df, target=None):
-    df_1 = pd.DataFrame(df, columns=['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'])
+    df_1 = pd.DataFrame(df, columns=[FEATURE_NB_A, FEATURE_NB_W, FEATURE_NB_A_W, FEATURE_NB_A_MA, FEATURE_NB_W_MA])
     X = df_1
     
     if target:
@@ -24,7 +35,7 @@ def create_time_features(df, target=None):
         return X, y
     return X
 
-def window_data(X, window=24):
+def window_data(X, window=SEQUENCE_LENGTH):
     x = []
     for i in range(window-1, len(X)):
         x.append(X[i-window+1:i+1])
@@ -34,11 +45,11 @@ def mean_absolute_percentage_error(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=24):
+def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=SEQUENCE_LENGTH):
     df_test = pd.read_csv(test_file_path, sep=',', header=0, low_memory=False,
                          parse_dates=True)
     
-    X_test_df, y_test = create_time_features(df_test, target=['nb_A', 'nb_W'])
+    X_test_df, y_test = create_time_features(df_test, target=[FEATURE_NB_A, FEATURE_NB_W])
     
     with open(scaler_path, 'rb') as f:
         scaler = pickle.load(f)
@@ -51,8 +62,8 @@ def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=2
     nb_A_pred = predictions[:, 0]
     nb_W_pred = predictions[:, 1]
     
-    original_nb_A = df_test['nb_A'].values[sequence_length-1:]
-    original_nb_W = df_test['nb_W'].values[sequence_length-1:]
+    original_nb_A = df_test[FEATURE_NB_A].values[sequence_length-1:]
+    original_nb_W = df_test[FEATURE_NB_W].values[sequence_length-1:]
     
     start_idx = max(0, len(nb_A_pred) - SAMPLE_SIZE)
     end_idx = len(nb_A_pred)
@@ -115,9 +126,9 @@ def predict_from_file(model_path, test_file_path, scaler_path, sequence_length=2
     return results_df
 
 if __name__ == "__main__":
-    model_path = os.path.join('prof', 'model', 'lstm_model.h5')
-    scaler_path = os.path.join('prof', 'scaler', 'scaler.pkl')
-    test_file = os.path.join('test_data', 'test_rrc12-ma-1-g3.csv')
+    model_path = MODEL_PATH
+    scaler_path = SCALER_PATH
+    test_file = os.path.join(TEST_DATA_DIR, 'test_rrc12-ma-1-g3.csv')
     
     results_df = predict_from_file(model_path, test_file, scaler_path)
     

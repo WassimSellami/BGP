@@ -5,18 +5,24 @@ import numpy as np
 from bgp_features import BGPFeatures
 from tensorflow.keras.models import load_model
 import pickle
-import os
 import matplotlib.pyplot as plt
 from collections import deque
+from constants import (
+    FEATURE_NB_A,
+    FEATURE_NB_A_MA,
+    FEATURE_NB_A_W,
+    FEATURE_NB_W,
+    FEATURE_NB_W_MA,
+    TIME_WINDOW,
+    MA_WINDOW,
+    SEQUENCE_LENGTH,
+    PLOT_WINDOW,
+    CHOSEN_COLLECTOR,
+    REAL_TIME_FEATURES_FILENAME,
+    MODEL_PATH,
+    SCALER_PATH
+)
 
-TIME_WINDOW = 30
-REAL_TIME_FEATURES_FILENAME = "output/real_time_collector_with_predictions.csv"
-CHOSEN_COLLECTOR = "rrc12"
-MA_WINDOW = 10
-SEQUENCE_LENGTH = 24
-MODEL_PATH = os.path.join('prof', 'model', 'lstm_model.h5')
-SCALER_PATH = os.path.join('prof', 'scaler', 'scaler.pkl')
-PLOT_WINDOW = 100  
 def calculate_moving_average(records, field, window_size):
     if not records:
         return 0
@@ -25,9 +31,9 @@ def calculate_moving_average(records, field, window_size):
 
 def create_time_features(record):
     return [
-        record['nb_A_W'],
-        record['nb_A_ma'],
-        record['nb_W_ma']
+        record[FEATURE_NB_A_W],
+        record[FEATURE_NB_A_MA],
+        record[FEATURE_NB_W_MA]
     ]
 
 def window_data(X, window=24):
@@ -49,7 +55,7 @@ last_save_time = time.time()
 
 with open(REAL_TIME_FEATURES_FILENAME, mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'])
+    writer.writerow([FEATURE_NB_A, FEATURE_NB_W, FEATURE_NB_A_W, FEATURE_NB_A_MA, FEATURE_NB_W_MA])
 
 recent_records = []
 prediction_window = []
@@ -69,20 +75,20 @@ for elem in stream:
         
         if current_time - last_save_time >= TIME_WINDOW:
             current_record = {
-                'nb_A': features.nb_A,
-                'nb_W': features.nb_W,
-                'nb_A_W': features.nb_A_W
+                FEATURE_NB_A: features.nb_A,
+                FEATURE_NB_W: features.nb_W,
+                FEATURE_NB_A_W: features.nb_A_W
             }
             
             recent_records.append(current_record)
             if len(recent_records) > MA_WINDOW:
                 recent_records.pop(0)
             
-            nb_A_ma = calculate_moving_average(recent_records, 'nb_A', MA_WINDOW)
-            nb_W_ma = calculate_moving_average(recent_records, 'nb_W', MA_WINDOW)
+            nb_A_ma = calculate_moving_average(recent_records, FEATURE_NB_A, MA_WINDOW)
+            nb_W_ma = calculate_moving_average(recent_records, FEATURE_NB_W, MA_WINDOW)
             
-            current_record['nb_A_ma'] = nb_A_ma
-            current_record['nb_W_ma'] = nb_W_ma
+            current_record[FEATURE_NB_A_MA] = nb_A_ma
+            current_record[FEATURE_NB_W_MA] = nb_W_ma
             
             feature_vector = create_time_features(current_record)
             
@@ -97,8 +103,8 @@ for elem in stream:
                 X = window_data(np.array(prediction_window))
                 predictions = model.predict(X, verbose=0)[0]
                 
-                nb_A_history.append(current_record['nb_A'])
-                nb_W_history.append(current_record['nb_W'])
+                nb_A_history.append(current_record[FEATURE_NB_A])
+                nb_W_history.append(current_record[FEATURE_NB_W])
                 pred_A_history.append(predictions[0])
                 pred_W_history.append(predictions[1])
                 
@@ -130,9 +136,9 @@ for elem in stream:
             with open(REAL_TIME_FEATURES_FILENAME, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([
-                    current_record['nb_A'],
-                    current_record['nb_W'],
-                    current_record['nb_A_W'],
+                    current_record[FEATURE_NB_A],
+                    current_record[FEATURE_NB_W],
+                    current_record[FEATURE_NB_A_W],
                     nb_A_ma,
                     nb_W_ma
                 ])
