@@ -36,7 +36,7 @@ def create_time_features(record):
         record[FEATURE_NB_W_MA]
     ]
 
-def window_data(X, window=24):
+def window_data(X, window=SEQUENCE_LENGTH):
     x = []
     for i in range(window-1, len(X)):
         x.append(X[i-window+1:i+1])

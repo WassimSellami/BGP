@@ -13,9 +13,9 @@ import pickle
 import warnings
 warnings.filterwarnings("ignore")
 from constants import (
-    FEATURE_NB_A, FEATURE_NB_A_MA, FEATURE_NB_A_W, FEATURE_NB_W, FEATURE_NB_W_MA, SEED, BATCH_SIZE, BUFFER_SIZE, WINDOW_LENGTH,
+    FEATURE_NB_A, FEATURE_NB_A_MA, FEATURE_NB_A_W, FEATURE_NB_W, FEATURE_NB_W_MA, SEED, BATCH_SIZE, BUFFER_SIZE,
     EVALUATION_INTERVAL, EPOCHS, MODEL_DIR, SCALER_DIR,
-    MODEL_PATH, SCALER_PATH, TRAINING_DATA_FILE,
+    MODEL_PATH, SCALER_PATH, SEQUENCE_LENGTH, TRAINING_DATA_FILE,
     TRAINING_OUTPUT_FILE, TEST_OUTPUT_FILE
 )
 
@@ -39,7 +39,7 @@ def create_time_features(df, target=None):
         return X, y
     return X
 
-def window_data(X, Y, window=7):
+def window_data(X, Y, window=SEQUENCE_LENGTH):
     x = []
     y = []
     for i in range(window-1, len(X)):
@@ -79,7 +79,7 @@ def main():
 
     X_w = np.concatenate((X_train, X_test))
     y_w = np.concatenate((y_train, y_test))
-    X_w, y_w = window_data(X_w, y_w, window=WINDOW_LENGTH)
+    X_w, y_w = window_data(X_w, y_w, window=SEQUENCE_LENGTH)
     
     X_train_w = X_w[:-len(X_test)]
     y_train_w = y_w[:-len(X_test)]
@@ -131,7 +131,7 @@ def main():
     ax2.set_xlabel('Time steps', fontsize=23, fontweight="bold")
     ax2.set_ylabel('Number of Withdrawals', fontsize=27, fontweight="bold")
     ax2.set_yscale("log")
-    ax2.plot(df_test['nb_W'].values[4708:4908], label='Original', linewidth=4.0, color='black')
+    ax2.plot(df_test[FEATURE_NB_W].values[4708:4908], label='Original', linewidth=4.0, color='black')
     ax2.plot(nb_W_pred[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
     ax2.tick_params(labelsize=15)
     ax2.legend(fontsize=28, loc='upper left')

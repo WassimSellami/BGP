@@ -10,16 +10,15 @@ PLOT_WINDOW = 100
 SEED = 42
 BATCH_SIZE = 64
 BUFFER_SIZE = 100
-WINDOW_LENGTH = 24
 EVALUATION_INTERVAL = 150
 EPOCHS = 100
 
 # Feature names
 FEATURE_NB_A = 'nb_A'         
-FEATURE_NB_W = 'nb_W'         # Number of withdrawals  
-FEATURE_NB_A_W = 'nb_A_W'     # Total number of announcements and withdrawals
-FEATURE_NB_A_MA = 'nb_A_ma'   # Moving average of announcements
-FEATURE_NB_W_MA = 'nb_W_ma'   # Moving average of withdrawals
+FEATURE_NB_W = 'nb_W'
+FEATURE_NB_A_W = 'nb_A_W'
+FEATURE_NB_A_MA = 'nb_A_ma'
+FEATURE_NB_W_MA = 'nb_W_ma'
 
 # Collector settings
 CHOSEN_COLLECTOR = "rrc12"
