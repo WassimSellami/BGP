@@ -17,6 +17,8 @@ def calculate_moving_average(records, field, window_size):
 stream = pybgpstream.BGPStream(
     project="ris-live",
 )
+
+
 features = BGPFeatures()
 
 last_save_time = time.time()
@@ -60,4 +62,3 @@ for elem in stream:
             features.reset()
             last_save_time = current_time
             
-    time.sleep(0.0001)

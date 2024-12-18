@@ -7,7 +7,7 @@ from tensorflow.keras.models import load_model
 import pickle
 import os
 
-TIME_WINDOW = 1
+TIME_WINDOW = 5
 REAL_TIME_FEATURES_FILENAME = "output/real_time_collector_with_predictions.csv"
 CHOSEN_COLLECTOR = "rrc12"
 MA_WINDOW = 10
@@ -106,4 +106,3 @@ for elem in stream:
             features.reset()
             last_save_time = current_time
             
-    time.sleep(0.0001)
