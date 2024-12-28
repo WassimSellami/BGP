@@ -13,22 +13,12 @@ import pickle
 import warnings
 warnings.filterwarnings("ignore")
 
-# Constants
-SEED = 42
-BATCH_SIZE = 64
-BUFFER_SIZE = 100
-SEQUENCE_LENGTH = 24
-EVALUATION_INTERVAL = 150
-EPOCHS = 100
+from constants import Constants
+
+
 MODEL_DIR = 'model'
 SCALER_DIR = 'scaler'
 
-# Feature names
-FEATURE_NB_A = 'nb_A'
-FEATURE_NB_W = 'nb_W'
-FEATURE_NB_A_W = 'nb_A_W'
-FEATURE_NB_A_MA = 'nb_A_ma'
-FEATURE_NB_W_MA = 'nb_W_ma'
 
 # Paths
 MODEL_PATH = os.path.join(MODEL_DIR, 'lstm_model.h5')
@@ -38,11 +28,11 @@ TRAINING_DATA_FILE = 'train_data/rrc12-ma-5-g3.csv'
 plt.style.use('default')
 plt.rcParams["figure.figsize"] = (9, 8)
 
-tf.random.set_seed(SEED)
-np.random.seed(SEED)
+tf.random.set_seed(Constants.SEED)
+np.random.seed(Constants.SEED)
 
 def create_time_features(df, target=None):
-    df_1 = pd.DataFrame(df, columns=[FEATURE_NB_A, FEATURE_NB_W, FEATURE_NB_A_W, FEATURE_NB_A_MA, FEATURE_NB_W_MA])
+    df_1 = pd.DataFrame(df, columns=[Constants.FEATURE_NB_A, Constants.FEATURE_NB_W, Constants.FEATURE_NB_A_W, Constants.FEATURE_NB_A_MA, Constants.FEATURE_NB_W_MA])
     X = df_1
     
     if target:
@@ -54,7 +44,7 @@ def create_time_features(df, target=None):
             return X, y
     return X
 
-def window_data(X, Y, window=SEQUENCE_LENGTH):
+def window_data(X, Y, window=Constants.SEQUENCE_LENGTH):
     x = []
     y = []
     for i in range(window-1, len(X)):
@@ -80,8 +70,8 @@ def main():
     print(f"{len(df_training)} days of training data\n{len(df_test)} days of testing data")
 
 
-    X_train_df, y_train = create_time_features(df_training, target=[FEATURE_NB_A, FEATURE_NB_W])
-    X_test_df, y_test = create_time_features(df_test, target=[FEATURE_NB_A, FEATURE_NB_W])
+    X_train_df, y_train = create_time_features(df_training, target=[Constants.FEATURE_NB_A, Constants.FEATURE_NB_W])
+    X_test_df, y_test = create_time_features(df_test, target=[Constants.FEATURE_NB_A, Constants.FEATURE_NB_W])
 
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train_df)
@@ -95,7 +85,7 @@ def main():
 
     X_w = np.concatenate((X_train, X_test))
     y_w = np.concatenate((y_train, y_test))
-    X_w, y_w = window_data(X_w, y_w, window=SEQUENCE_LENGTH)
+    X_w, y_w = window_data(X_w, y_w, window=Constants.SEQUENCE_LENGTH)
     
     X_train_w = X_w[:-len(X_test)]
     y_train_w = y_w[:-len(X_test)]
@@ -103,10 +93,10 @@ def main():
     y_test_w = y_w[-len(X_test):]
 
     train_data = tf.data.Dataset.from_tensor_slices((X_train_w, y_train_w))
-    train_data = train_data.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat()
+    train_data = train_data.cache().shuffle(Constants.BUFFER_SIZE).batch(Constants.BATCH_SIZE).repeat()
 
     val_data = tf.data.Dataset.from_tensor_slices((X_test_w, y_test_w))
-    val_data = val_data.batch(BATCH_SIZE).repeat()
+    val_data = val_data.batch(Constants.BATCH_SIZE).repeat()
 
     simple_lstm_model = tf.keras.models.Sequential([
         tf.keras.layers.LSTM(128, input_shape=X_train_w.shape[-2:], dropout=0.0),
@@ -118,8 +108,8 @@ def main():
 
     model_history = simple_lstm_model.fit(
         train_data, 
-        epochs=EPOCHS,
-        steps_per_epoch=EVALUATION_INTERVAL,
+        epochs=Constants.EPOCHS,
+        steps_per_epoch=Constants.EVALUATION_INTERVAL,
         validation_data=val_data, 
         validation_steps=10
     )
@@ -138,7 +128,7 @@ def main():
     ax1.set_xlabel('Time steps', fontsize=23, fontweight="bold")
     ax1.set_ylabel('Number of Announcements', fontsize=27, fontweight="bold")
     ax1.set_yscale("log")
-    ax1.plot(df_test[FEATURE_NB_A].values[4708:4908], label='Original', linewidth=4.0, color='black')
+    ax1.plot(df_test[Constants.FEATURE_NB_A].values[4708:4908], label='Original', linewidth=4.0, color='black')
     ax1.plot(nb_A_pred[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
     ax1.tick_params(labelsize=15)
     ax1.legend(fontsize=28, loc='upper left')
@@ -147,7 +137,7 @@ def main():
     ax2.set_xlabel('Time steps', fontsize=23, fontweight="bold")
     ax2.set_ylabel('Number of Withdrawals', fontsize=27, fontweight="bold")
     ax2.set_yscale("log")
-    ax2.plot(df_test[FEATURE_NB_W].values[4708:4908], label='Original', linewidth=4.0, color='black')
+    ax2.plot(df_test[Constants.FEATURE_NB_W].values[4708:4908], label='Original', linewidth=4.0, color='black')
     ax2.plot(nb_W_pred[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
     ax2.tick_params(labelsize=15)
     ax2.legend(fontsize=28, loc='upper left')
@@ -158,16 +148,16 @@ def main():
     plt.close()
 
     print("Metrics for nb_A:")
-    print("RMSE : ", np.sqrt(mean_squared_error(df_test[FEATURE_NB_A], nb_A_pred)), end=",     ")
-    print("MAE: ", mean_absolute_error(df_test[FEATURE_NB_A], nb_A_pred), end=",     ")
-    print("MAPE : ", mean_absolute_percentage_error(df_test[FEATURE_NB_A], nb_A_pred), end=",     ")
-    print("r2 : ", r2_score(df_test[FEATURE_NB_A], nb_A_pred))
+    print("RMSE : ", np.sqrt(mean_squared_error(df_test[Constants.FEATURE_NB_A], nb_A_pred)), end=",     ")
+    print("MAE: ", mean_absolute_error(df_test[Constants.FEATURE_NB_A], nb_A_pred), end=",     ")
+    print("MAPE : ", mean_absolute_percentage_error(df_test[Constants.FEATURE_NB_A], nb_A_pred), end=",     ")
+    print("r2 : ", r2_score(df_test[Constants.FEATURE_NB_A], nb_A_pred))
 
     print("\nMetrics for nb_W:")
-    print("RMSE : ", np.sqrt(mean_squared_error(df_test[FEATURE_NB_W], nb_W_pred)), end=",     ")
-    print("MAE: ", mean_absolute_error(df_test[FEATURE_NB_W], nb_W_pred), end=",     ")
-    print("MAPE : ", mean_absolute_percentage_error(df_test[FEATURE_NB_W], nb_W_pred), end=",     ")
-    print("r2 : ", r2_score(df_test[FEATURE_NB_W], nb_W_pred))
+    print("RMSE : ", np.sqrt(mean_squared_error(df_test[Constants.FEATURE_NB_W], nb_W_pred)), end=",     ")
+    print("MAE: ", mean_absolute_error(df_test[Constants.FEATURE_NB_W], nb_W_pred), end=",     ")
+    print("MAPE : ", mean_absolute_percentage_error(df_test[Constants.FEATURE_NB_W], nb_W_pred), end=",     ")
+    print("r2 : ", r2_score(df_test[Constants.FEATURE_NB_W], nb_W_pred))
 
 if __name__ == "__main__":
     main()

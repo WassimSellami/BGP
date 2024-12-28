@@ -1,5 +1,4 @@
 import time
-from constants import FEATURE_NB_A, FEATURE_NB_W, FEATURE_NB_A_W
 
 class BGPFeatures:
     def __init__(self):
