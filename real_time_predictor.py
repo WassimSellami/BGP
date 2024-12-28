@@ -5,9 +5,9 @@ import numpy as np
 from bgp_features import BGPFeatures
 from tensorflow.keras.models import load_model
 import pickle
-import os
 import matplotlib.pyplot as plt
 from collections import deque
+<<<<<<< HEAD
 import pandas as pd
 
 TIME_WINDOW = 1
@@ -19,6 +19,24 @@ MODEL_PATH = os.path.join('model', 'lstm_model.h5')
 SCALER_PATH = os.path.join('scaler', 'scaler.pkl')
 PLOT_WINDOW = 100
 
+=======
+from constants import (
+    FEATURE_NB_A,
+    FEATURE_NB_A_MA,
+    FEATURE_NB_A_W,
+    FEATURE_NB_W,
+    FEATURE_NB_W_MA,
+    TIME_WINDOW,
+    MA_WINDOW,
+    SEQUENCE_LENGTH,
+    PLOT_WINDOW,
+    CHOSEN_COLLECTOR,
+    REAL_TIME_FEATURES_FILENAME,
+    MODEL_PATH,
+    SCALER_PATH
+)
+
+>>>>>>> 9f4dc35409a68d6ec35588b1d645fac6a800e7f4
 def calculate_moving_average(records, field, window_size):
     if not records:
         return 0
@@ -26,6 +44,7 @@ def calculate_moving_average(records, field, window_size):
     return round(sum(values) / len(values), 2)
 
 def create_time_features(record):
+<<<<<<< HEAD
     # Create DataFrame with same structure as training
     df = pd.DataFrame([{
         'nb_A': record['nb_A'],
@@ -35,6 +54,19 @@ def create_time_features(record):
         'nb_W_ma': record['nb_W_ma']
     }])
     return df
+=======
+    return [
+        record[FEATURE_NB_A_W],
+        record[FEATURE_NB_A_MA],
+        record[FEATURE_NB_W_MA]
+    ]
+
+def window_data(X, window=SEQUENCE_LENGTH):
+    x = []
+    for i in range(window-1, len(X)):
+        x.append(X[i-window+1:i+1])
+    return np.array(x)
+>>>>>>> 9f4dc35409a68d6ec35588b1d645fac6a800e7f4
 
 model = load_model(MODEL_PATH)
 with open(SCALER_PATH, 'rb') as f:
@@ -49,7 +81,7 @@ last_save_time = time.time()
 
 with open(REAL_TIME_FEATURES_FILENAME, mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'])
+    writer.writerow([FEATURE_NB_A, FEATURE_NB_W, FEATURE_NB_A_W, FEATURE_NB_A_MA, FEATURE_NB_W_MA])
 
 recent_records = []
 feature_sequences = []
@@ -69,21 +101,26 @@ for elem in stream:
         
         if current_time - last_save_time >= TIME_WINDOW:
             current_record = {
-                'nb_A': features.nb_A,
-                'nb_W': features.nb_W,
-                'nb_A_W': features.nb_A_W
+                FEATURE_NB_A: features.nb_A,
+                FEATURE_NB_W: features.nb_W,
+                FEATURE_NB_A_W: features.nb_A_W
             }
             
             recent_records.append(current_record)
             if len(recent_records) > MA_WINDOW:
                 recent_records.pop(0)
             
+<<<<<<< HEAD
             # Calculate moving averages
             nb_A_ma = calculate_moving_average(recent_records, 'nb_A', MA_WINDOW)
             nb_W_ma = calculate_moving_average(recent_records, 'nb_W', MA_WINDOW)
+=======
+            nb_A_ma = calculate_moving_average(recent_records, FEATURE_NB_A, MA_WINDOW)
+            nb_W_ma = calculate_moving_average(recent_records, FEATURE_NB_W, MA_WINDOW)
+>>>>>>> 9f4dc35409a68d6ec35588b1d645fac6a800e7f4
             
-            current_record['nb_A_ma'] = nb_A_ma
-            current_record['nb_W_ma'] = nb_W_ma
+            current_record[FEATURE_NB_A_MA] = nb_A_ma
+            current_record[FEATURE_NB_W_MA] = nb_W_ma
             
             # Create features DataFrame and scale
             features_df = create_time_features(current_record)
@@ -100,8 +137,8 @@ for elem in stream:
                 # Predict next window's values
                 predictions = model.predict(X, verbose=0)[0]
                 
-                nb_A_history.append(current_record['nb_A'])
-                nb_W_history.append(current_record['nb_W'])
+                nb_A_history.append(current_record[FEATURE_NB_A])
+                nb_W_history.append(current_record[FEATURE_NB_W])
                 pred_A_history.append(predictions[0])
                 pred_W_history.append(predictions[1])
                 
@@ -135,9 +172,9 @@ for elem in stream:
             with open(REAL_TIME_FEATURES_FILENAME, mode='a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow([
-                    current_record['nb_A'],
-                    current_record['nb_W'],
-                    current_record['nb_A_W'],
+                    current_record[FEATURE_NB_A],
+                    current_record[FEATURE_NB_W],
+                    current_record[FEATURE_NB_A_W],
                     nb_A_ma,
                     nb_W_ma
                 ])
