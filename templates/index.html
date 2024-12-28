@@ -3,26 +3,64 @@
 <head>
     <title>BGP Updates Real-time Prediction</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        .chart-container {
-            width: 90%;
-            margin: 20px auto;
-            height: 400px;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
+
         h1 {
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 40px;
             text-align: center;
-            color: #333;
-            margin: 20px 0;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 40px;
+        }
+
+        .chart-wrapper {
+            background: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        .chart-title {
+            color: #2c3e50;
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 400px !important;
         }
     </style>
 </head>
 <body>
     <h1>BGP Updates Real-time Prediction</h1>
-    <div class="chart-container">
-        <canvas id="announcementsChart"></canvas>
-    </div>
-    <div class="chart-container">
-        <canvas id="withdrawalsChart"></canvas>
+    
+    <div class="charts-container">
+        <div class="chart-wrapper">
+            <div class="chart-title">BGP Announcements</div>
+            <canvas id="announcementsChart"></canvas>
+        </div>
+        <div class="chart-wrapper">
+            <div class="chart-title">BGP Withdrawals</div>
+            <canvas id="withdrawalsChart"></canvas>
+        </div>
     </div>
 
     <script>
@@ -36,51 +74,111 @@
         const predWData = Array(plotWindow).fill(0);
         const labels = Array(plotWindow).fill('');
 
-        // Create charts
+        const chartConfig = {
+            type: 'line',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    y: {
+                        type: 'logarithmic',
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.06)'
+                        },
+                        ticks: {
+                            color: '#666'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Count',
+                            color: '#666',
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.06)'
+                        },
+                        ticks: {
+                            color: '#666'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time',
+                            color: '#666',
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            boxWidth: 12,
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            padding: 20,
+                            color: '#666',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#2c3e50',
+                        bodyColor: '#666',
+                        borderColor: '#e1e4e8',
+                        borderWidth: 1,
+                        padding: 12,
+                        displayColors: true,
+                        intersect: false,
+                        mode: 'index'
+                    }
+                }
+            }
+        };
+
         const announcementsChart = new Chart(
             document.getElementById('announcementsChart'),
             {
-                type: 'line',
+                ...chartConfig,
                 data: {
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Current nb_A',
+                            label: 'Current',
                             data: nbAData,
-                            borderColor: 'rgb(75, 192, 192)',
-                            tension: 0.1
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
                         },
                         {
-                            label: 'Predicted Next nb_A',
+                            label: 'Predicted',
                             data: predAData,
-                            borderColor: 'rgb(255, 159, 64)',
-                            tension: 0.1
+                            borderColor: '#e74c3c',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
                         }
                     ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            type: 'logarithmic',
-                            title: {
-                                display: true,
-                                text: 'Number of Announcements'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Time Steps'
-                            }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'BGP Announcements - Real-time vs Predicted'
-                        }
-                    }
                 }
             }
         );
@@ -88,52 +186,36 @@
         const withdrawalsChart = new Chart(
             document.getElementById('withdrawalsChart'),
             {
-                type: 'line',
+                ...chartConfig,
                 data: {
                     labels: labels,
                     datasets: [
                         {
-                            label: 'Current nb_W',
+                            label: 'Current',
                             data: nbWData,
-                            borderColor: 'rgb(75, 192, 192)',
-                            tension: 0.1
+                            borderColor: '#2ecc71',
+                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
                         },
                         {
-                            label: 'Predicted Next nb_W',
+                            label: 'Predicted',
                             data: predWData,
-                            borderColor: 'rgb(255, 159, 64)',
-                            tension: 0.1
+                            borderColor: '#f1c40f',
+                            borderWidth: 2,
+                            borderDash: [4, 4],
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 4
                         }
                     ]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            type: 'logarithmic',
-                            title: {
-                                display: true,
-                                text: 'Number of Withdrawals'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Time Steps'
-                            }
-                        }
-                    },
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: 'BGP Withdrawals - Real-time vs Predicted'
-                        }
-                    }
                 }
             }
         );
 
-        // Function to update charts with new data
         function updateCharts() {
             fetch('http://localhost:3000/data')
                 .then(response => response.json())
@@ -149,14 +231,18 @@
                     predWData.shift();
 
                     // Update charts
-                    announcementsChart.update();
-                    withdrawalsChart.update();
+                    announcementsChart.update('none');
+                    withdrawalsChart.update('none');
                 })
                 .catch(error => console.error('Error:', error));
         }
+
+        // Initial update
+        updateCharts();
 
         // Update every TIME_WINDOW seconds
         setInterval(updateCharts, timeWindow * 1000);
     </script>
 </body>
+</html> 
 </html> 
