@@ -19,8 +19,8 @@ BUFFER_SIZE = 100
 WINDOW_LENGTH = 24
 EVALUATION_INTERVAL = 150
 EPOCHS = 100
-MODEL_DIR = 'prof/model'
-SCALER_DIR = 'prof/scaler'
+MODEL_DIR = 'model'
+SCALER_DIR = 'scaler'
 
 tf.random.set_seed(SEED)
 np.random.seed(SEED)
@@ -34,12 +34,11 @@ def create_time_features(df, target=None):
     
     if target:
         if isinstance(target, list):
-            y = df[target]
-            X = X.drop(target, axis=1)
+            y = df[target].copy()
+            return X, y
         else:
-            y = df[target]
-            X = X.drop([target], axis=1)
-        return X, y
+            y = df[target].copy()
+            return X, y
     return X
 
 def window_data(X, Y, window=7):
@@ -47,7 +46,10 @@ def window_data(X, Y, window=7):
     y = []
     for i in range(window-1, len(X)):
         x.append(X[i-window+1:i+1])
-        y.append(Y[i])
+        if i+1 < len(Y):
+            y.append(Y[i+1])
+        else:
+            y.append(Y[i])
     return np.array(x), np.array(y)
 
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -64,10 +66,6 @@ def main():
     df_training = df[1:train_size]
     df_test = df[train_size:]
     print(f"{len(df_training)} days of training data\n{len(df_test)} days of testing data")
-
-    df_training.to_csv('training.csv')
-    df_test.to_csv('test.csv')
-
     X_train_df, y_train = create_time_features(df_training, target=['nb_A', 'nb_W'])
     X_test_df, y_test = create_time_features(df_test, target=['nb_A', 'nb_W'])
 

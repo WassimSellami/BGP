@@ -8,15 +8,17 @@ import pickle
 import os
 import matplotlib.pyplot as plt
 from collections import deque
+import pandas as pd
 
-TIME_WINDOW = 30
+TIME_WINDOW = 1
 REAL_TIME_FEATURES_FILENAME = "output/real_time_collector_with_predictions.csv"
 CHOSEN_COLLECTOR = "rrc12"
 MA_WINDOW = 10
 SEQUENCE_LENGTH = 24
-MODEL_PATH = os.path.join('prof', 'model', 'lstm_model.h5')
-SCALER_PATH = os.path.join('prof', 'scaler', 'scaler.pkl')
-PLOT_WINDOW = 100  
+MODEL_PATH = os.path.join('model', 'lstm_model.h5')
+SCALER_PATH = os.path.join('scaler', 'scaler.pkl')
+PLOT_WINDOW = 100
+
 def calculate_moving_average(records, field, window_size):
     if not records:
         return 0
@@ -24,17 +26,15 @@ def calculate_moving_average(records, field, window_size):
     return round(sum(values) / len(values), 2)
 
 def create_time_features(record):
-    return [
-        record['nb_A_W'],
-        record['nb_A_ma'],
-        record['nb_W_ma']
-    ]
-
-def window_data(X, window=24):
-    x = []
-    for i in range(window-1, len(X)):
-        x.append(X[i-window+1:i+1])
-    return np.array(x)
+    # Create DataFrame with same structure as training
+    df = pd.DataFrame([{
+        'nb_A': record['nb_A'],
+        'nb_W': record['nb_W'],
+        'nb_A_W': record['nb_A_W'],
+        'nb_A_ma': record['nb_A_ma'],
+        'nb_W_ma': record['nb_W_ma']
+    }])
+    return df
 
 model = load_model(MODEL_PATH)
 with open(SCALER_PATH, 'rb') as f:
@@ -52,7 +52,7 @@ with open(REAL_TIME_FEATURES_FILENAME, mode='w', newline='') as file:
     writer.writerow(['nb_A', 'nb_W', 'nb_A_W', 'nb_A_ma', 'nb_W_ma'])
 
 recent_records = []
-prediction_window = []
+feature_sequences = []
 
 nb_A_history = deque(maxlen=PLOT_WINDOW)
 nb_W_history = deque(maxlen=PLOT_WINDOW)
@@ -78,23 +78,26 @@ for elem in stream:
             if len(recent_records) > MA_WINDOW:
                 recent_records.pop(0)
             
+            # Calculate moving averages
             nb_A_ma = calculate_moving_average(recent_records, 'nb_A', MA_WINDOW)
             nb_W_ma = calculate_moving_average(recent_records, 'nb_W', MA_WINDOW)
             
             current_record['nb_A_ma'] = nb_A_ma
             current_record['nb_W_ma'] = nb_W_ma
             
-            feature_vector = create_time_features(current_record)
+            # Create features DataFrame and scale
+            features_df = create_time_features(current_record)
+            scaled_features = scaler.transform(features_df)[0]
+            feature_sequences.append(scaled_features)
             
-            scaled_features = scaler.transform([feature_vector])[0]
-            prediction_window.append(scaled_features)
-            
-            if len(prediction_window) > SEQUENCE_LENGTH:
-                prediction_window.pop(0)
+            if len(feature_sequences) > SEQUENCE_LENGTH:
+                feature_sequences.pop(0)
             
             predictions = [0, 0]
-            if len(prediction_window) == SEQUENCE_LENGTH:
-                X = window_data(np.array(prediction_window))
+            if len(feature_sequences) == SEQUENCE_LENGTH:
+                # Shape input for LSTM: [batch_size, sequence_length, n_features]
+                X = np.array([feature_sequences])
+                # Predict next window's values
                 predictions = model.predict(X, verbose=0)[0]
                 
                 nb_A_history.append(current_record['nb_A'])
@@ -107,25 +110,27 @@ for elem in stream:
                 
                 ax1.set_xlabel('Time Steps')
                 ax1.set_ylabel('Number of Announcements')
-                ax1.set_title('BGP Updates Real-time Prediction - Announcements')
-                ax1.plot(list(nb_A_history), label='Actual nb_A', 
+                ax1.set_title('BGP Updates Real-time Prediction - Next Window Announcements')
+                ax1.plot(list(nb_A_history), label='Current nb_A', 
                         linewidth=1.0, color='blue', alpha=0.8)
-                ax1.plot(list(pred_A_history), label='Predicted nb_A', 
+                ax1.plot(list(pred_A_history), label='Predicted Next nb_A', 
                         linewidth=1.0, color='orange', alpha=0.8)
                 ax1.legend()
+                ax1.set_yscale('log')
                 
                 ax2.set_xlabel('Time Steps')
                 ax2.set_ylabel('Number of Withdrawals')
-                ax2.set_title('BGP Updates Real-time Prediction - Withdrawals')
-                ax2.plot(list(nb_W_history), label='Actual nb_W', 
+                ax2.set_title('BGP Updates Real-time Prediction - Next Window Withdrawals')
+                ax2.plot(list(nb_W_history), label='Current nb_W', 
                         linewidth=1.0, color='blue', alpha=0.8)
-                ax2.plot(list(pred_W_history), label='Predicted nb_W', 
+                ax2.plot(list(pred_W_history), label='Predicted Next nb_W', 
                         linewidth=1.0, color='orange', alpha=0.8)
                 ax2.legend()
+                ax2.set_yscale('log')
                 
                 plt.tight_layout()
                 plt.draw()
-                plt.pause(0.1) 
+                plt.pause(0.1)
             
             with open(REAL_TIME_FEATURES_FILENAME, mode='a', newline='') as file:
                 writer = csv.writer(file)
@@ -136,10 +141,7 @@ for elem in stream:
                     nb_A_ma,
                     nb_W_ma
                 ])
-                writer.writerow([
-                    round(predictions[0], 2),
-                    round(predictions[1], 2)
-                ])
+            
             features.reset()
             last_save_time = current_time
             
