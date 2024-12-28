@@ -12,27 +12,28 @@ from sklearn.metrics import (
 import pickle
 import warnings
 warnings.filterwarnings("ignore")
-<<<<<<< HEAD:lstm.py
 
+# Constants
 SEED = 42
 BATCH_SIZE = 64
 BUFFER_SIZE = 100
-WINDOW_LENGTH = 24
+SEQUENCE_LENGTH = 24
 EVALUATION_INTERVAL = 150
 EPOCHS = 100
 MODEL_DIR = 'model'
 SCALER_DIR = 'scaler'
 
-tf.random.set_seed(SEED)
-np.random.seed(SEED)
-=======
-from constants import (
-    FEATURE_NB_A, FEATURE_NB_A_MA, FEATURE_NB_A_W, FEATURE_NB_W, FEATURE_NB_W_MA, SEED, BATCH_SIZE, BUFFER_SIZE,
-    EVALUATION_INTERVAL, EPOCHS, MODEL_DIR, SCALER_DIR,
-    MODEL_PATH, SCALER_PATH, SEQUENCE_LENGTH, TRAINING_DATA_FILE,
-    TRAINING_OUTPUT_FILE, TEST_OUTPUT_FILE
-)
->>>>>>> 9f4dc35409a68d6ec35588b1d645fac6a800e7f4:prof/lstm.py
+# Feature names
+FEATURE_NB_A = 'nb_A'
+FEATURE_NB_W = 'nb_W'
+FEATURE_NB_A_W = 'nb_A_W'
+FEATURE_NB_A_MA = 'nb_A_ma'
+FEATURE_NB_W_MA = 'nb_W_ma'
+
+# Paths
+MODEL_PATH = os.path.join(MODEL_DIR, 'lstm_model.h5')
+SCALER_PATH = os.path.join(SCALER_DIR, 'scaler.pkl')
+TRAINING_DATA_FILE = 'train_data/rrc12-ma-5-g3.csv'
 
 plt.style.use('default')
 plt.rcParams["figure.figsize"] = (9, 8)
@@ -77,17 +78,10 @@ def main():
     df_training = df[1:train_size]
     df_test = df[train_size:]
     print(f"{len(df_training)} days of training data\n{len(df_test)} days of testing data")
-<<<<<<< HEAD:lstm.py
-    X_train_df, y_train = create_time_features(df_training, target=['nb_A', 'nb_W'])
-    X_test_df, y_test = create_time_features(df_test, target=['nb_A', 'nb_W'])
-=======
 
-    df_training.to_csv(TRAINING_OUTPUT_FILE)
-    df_test.to_csv(TEST_OUTPUT_FILE)
 
     X_train_df, y_train = create_time_features(df_training, target=[FEATURE_NB_A, FEATURE_NB_W])
     X_test_df, y_test = create_time_features(df_test, target=[FEATURE_NB_A, FEATURE_NB_W])
->>>>>>> 9f4dc35409a68d6ec35588b1d645fac6a800e7f4:prof/lstm.py
 
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train_df)
