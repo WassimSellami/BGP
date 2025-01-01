@@ -104,5 +104,5 @@ os.makedirs('model', exist_ok=True)
 model.save('model/lstm_model.h5')
 
 # Save the scaler
-with open('model/scaler.pkl', 'wb') as f:
+with open('scaler/scaler.pkl', 'wb') as f:
     pickle.dump(scaler, f)
