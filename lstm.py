@@ -144,7 +144,7 @@ def main():
     ax2.set_title('nb_W Predictions', fontsize=25, fontweight="bold")
 
     plt.tight_layout()
-    plt.savefig('prediction_results/train.png', dpi=300, bbox_inches='tight')
+    plt.savefig('prediction_results/lstm_predictions.png', dpi=300, bbox_inches='tight')
     plt.close()
 
     print("Metrics for nb_A:")
