@@ -3,10 +3,9 @@ import os
 import pandas as pd
 import csv
 
-TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'train_data')
-INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'rrc12-ma-5-prof.csv')
-FILTERED_OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'rrc12-5.csv')
-MA_OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'rrc12-ma-5-g3.csv')
+TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
+INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'generated_data1.csv')
+MA_OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'test_data1.csv')
 
 def filter_features(input_file=INPUT_FILE):
     df = pd.read_csv(input_file)
@@ -16,8 +15,6 @@ def filter_features(input_file=INPUT_FILE):
     
     df_processed = df_processed.round(2)
     
-    df_processed.to_csv(FILTERED_OUTPUT_FILE, index=False)
-    print(f"Filtered data saved to {FILTERED_OUTPUT_FILE}")
     print(f"Shape of filtered data: {df_processed.shape}")
     return df_processed
 
