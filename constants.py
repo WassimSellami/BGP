@@ -1,7 +1,7 @@
 import os
 
 class Constants:
-    TIME_WINDOW = 1
+    TIME_WINDOW = 30
     MA_WINDOW = 10
     SEQUENCE_LENGTH = 24
     PLOT_WINDOW = 100

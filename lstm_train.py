@@ -1,5 +1,4 @@
 import pandas as pd
-from br import mean_absolute_percentage_error
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from tensorflow.keras.models import Sequential
@@ -14,11 +13,29 @@ from sklearn.model_selection import train_test_split
 from constants import Constants
 import pickle
 import os
+import tensorflow as tf
 
-# Assuming df is your original dataframe with time-series data
-df = pd.read_csv('train_data/rrc12-ma-5-g3.csv')  # Load your data
+def mean_absolute_percentage_error(y_true, y_pred): 
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-# Split the data into training and testing sets
+WINDOW_LENGTH = 24
+BATCH_SIZE = 64
+BUFFER_SIZE = 100
+
+def window_data(X, Y, window=7):
+    '''
+    Creates sliding windows for sequential prediction
+    '''
+    x = []
+    y = []
+    for i in range(window-1, len(X)):
+        x.append(X[i-window+1:i+1])
+        y.append(Y[i])
+    return np.array(x), np.array(y)
+
+# Load and split data
+df = pd.read_csv('train_data/rrc12-ma-5-g3.csv')
 df_training, df_test = train_test_split(df, test_size=0.2, random_state=Constants.SEED)
 
 def create_time_features(df, target=None):
@@ -32,27 +49,40 @@ def create_time_features(df, target=None):
     X = df_1
     if target:
         y = df[target]
-        X = X.drop([target], axis=1)  # Drop target column from X
+        X = X.drop([target], axis=1)
         return X, y
-
     return X
 
-# Create time features for training
+# Create time features
 X_train_df, y_train = create_time_features(df_training, target=Constants.FEATURE_NB_A_W)
 X_test_df, y_test = create_time_features(df_test, target=Constants.FEATURE_NB_A_W)
 
-# Normalize the data
+# Scale the data
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train_df)
 X_test_scaled = scaler.transform(X_test_df)
 
-# Reshape the data for LSTM input: [samples, time steps, features]
-X_train_scaled = X_train_scaled.reshape((X_train_scaled.shape[0], 1, X_train_scaled.shape[1]))
-X_test_scaled = X_test_scaled.reshape((X_test_scaled.shape[0], 1, X_test_scaled.shape[1]))
+# Create windowed data
+X_w = np.concatenate((X_train_scaled, X_test_scaled))
+y_w = np.concatenate((y_train, y_test))
+X_w, y_w = window_data(X_w, y_w, window=WINDOW_LENGTH)
+
+# Split back into train and test
+X_train_w = X_w[:-len(X_test_scaled)]
+y_train_w = y_w[:-len(X_test_scaled)]
+X_test_w = X_w[-len(X_test_scaled):]
+y_test_w = y_w[-len(X_test_scaled):]
+
+# Create TensorFlow datasets
+train_data = tf.data.Dataset.from_tensor_slices((X_train_w, y_train_w))
+train_data = train_data.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat()
+
+val_data = tf.data.Dataset.from_tensor_slices((X_test_w, y_test_w))
+val_data = val_data.batch(BATCH_SIZE).repeat()
 
 # Build the LSTM model
 model = Sequential([
-    LSTM(128, input_shape=(X_train_scaled.shape[1], X_train_scaled.shape[2]), dropout=0.0),
+    LSTM(128, input_shape=(WINDOW_LENGTH, X_train_scaled.shape[1]), dropout=0.0),
     Dense(128),
     Dense(128),
     Dense(1)
@@ -61,44 +91,39 @@ model = Sequential([
 model.compile(optimizer='adam', loss='mean_squared_error')
 
 # Train the model
-history = model.fit(X_train_scaled, y_train, 
+history = model.fit(train_data, 
                    epochs=Constants.EPOCHS,
                    batch_size=Constants.BATCH_SIZE,
-                   validation_data=(X_test_scaled, y_test),
+                   validation_data=val_data,
                    validation_steps=10,
                    steps_per_epoch=Constants.EVALUATION_INTERVAL,
                    verbose=2)
 
 # Predict using the LSTM model
-yhat = model.predict(X_test_scaled)
+yhat = model.predict(X_test_w)
 
 # Evaluate the model
-print("RMSE : ", np.sqrt(mean_squared_error(y_test, yhat)), end=",     ")
-print("MAE: ", mean_absolute_error(y_test, yhat), end=",     ")
-print("MAPE : ", mean_absolute_percentage_error(y_test, yhat), end=",     ")
-print("r2 : ", r2_score(y_test, yhat), end=",     ")
+print("RMSE : ", np.sqrt(mean_squared_error(y_test_w, yhat)), end=",     ")
+print("MAE: ", mean_absolute_error(y_test_w, yhat), end=",     ")
+print("MAPE : ", mean_absolute_percentage_error(y_test_w, yhat), end=",     ")
+print("r2 : ", r2_score(y_test_w, yhat), end=",     ")
 
-# Save predictions in a dictionary
-predictionsDict = {
-    'Tensorflow simple LSTM': yhat.flatten()
-}
-
-# Visualize the predictions vs. actual values
-plt.plot(y_test.values[4708:4908], label='Original', linewidth=4.0, color='black')
+# Visualize predictions
+plt.figure(figsize=(12, 8))
+plt.plot(y_test_w[4708:4908], label='Original', linewidth=4.0, color='black')
 plt.plot(yhat[4708:4908], color='#FF1493', label='LSTM', linewidth=4.0)
 plt.xticks(fontsize=15, fontweight="bold")
 plt.yticks(fontsize=15, fontweight="bold")
 plt.xlabel('Time steps', fontsize=23, fontweight="bold")
 plt.ylabel('Number of Announcements & W', fontsize=27, fontweight="bold")
-plt.yscale("log")  # Added log scale
+plt.yscale("log")
 plt.legend(fontsize=28, loc='upper left')
 plt.tight_layout()
 plt.show()
 
-# Save model and scaler
-
 # Create directories if they don't exist
 os.makedirs('model', exist_ok=True)
+os.makedirs('scaler', exist_ok=True)
 
 # Save the model
 model.save('model/lstm_model.h5')

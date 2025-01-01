@@ -11,6 +11,7 @@ from bgp_features import BGPFeatures
 import signal
 import sys
 import os
+from collections import deque
 
 # Create prediction_results directory if it doesn't exist
 os.makedirs('prediction_results', exist_ok=True)
@@ -68,6 +69,10 @@ predicted_values = []
 time_steps = []
 step = 0
 
+# Initialize sequence buffer for LSTM
+sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
+next_prediction = None  # Store the prediction for the next time step
+
 print(f"Collecting initial {Constants.SEQUENCE_LENGTH} data points...")
 print("Press Ctrl+C to stop and save the plot...")
 
@@ -83,6 +88,13 @@ for elem in stream:
                 'nb_A_W': features.nb_A_W
             }
             
+            # Add current actual value and its corresponding prediction
+            if next_prediction is not None:
+                actual_values.append(current_record['nb_A_W'])
+                predicted_values.append(next_prediction)
+                time_steps.append(step)
+                step += 1
+            
             recent_records.append(current_record)
             
             if len(recent_records) > Constants.MA_WINDOW:
@@ -91,7 +103,7 @@ for elem in stream:
             nb_A_ma = calculate_moving_average(recent_records, 'nb_A', Constants.MA_WINDOW)
             nb_W_ma = calculate_moving_average(recent_records, 'nb_W', Constants.MA_WINDOW)
             
-            # Create feature vector for prediction with exact column names
+            # Create feature vector for prediction
             feature_vector = pd.DataFrame([[
                 current_record['nb_A'],
                 current_record['nb_W'],
@@ -99,39 +111,45 @@ for elem in stream:
                 nb_W_ma
             ]], columns=['nb_A', 'nb_W', 'nb_A_ma', 'nb_W_ma'])
             
-            # Scale and reshape for LSTM
+            # Scale features
             X_scaled = scaler.transform(feature_vector)
-            X_scaled = X_scaled.reshape((1, 1, X_scaled.shape[1]))
             
-            # Make prediction
-            prediction = model.predict(X_scaled, verbose=0)[0][0]
+            # Add to sequence buffer
+            sequence_buffer.append(X_scaled[0])
             
-            # Update plot data
-            actual_values.append(current_record['nb_A_W'])
-            predicted_values.append(prediction)
-            time_steps.append(step)
-            step += 1
-            
-            # Update plot with sequence length window
-            if len(time_steps) > Constants.SEQUENCE_LENGTH:
-                time_steps = time_steps[-Constants.SEQUENCE_LENGTH:]
-                actual_values = actual_values[-Constants.SEQUENCE_LENGTH:]
-                predicted_values = predicted_values[-Constants.SEQUENCE_LENGTH:]
-            
-            if len(time_steps) >= Constants.SEQUENCE_LENGTH:
-                actual_line.set_data(time_steps, actual_values)
-                pred_line.set_data(time_steps, predicted_values)
+            # Make prediction for next time step when we have enough sequence data
+            if len(sequence_buffer) == Constants.SEQUENCE_LENGTH:
+                # Reshape sequence for LSTM [samples, time steps, features]
+                X_sequence = np.array(list(sequence_buffer))
+                X_sequence = X_sequence.reshape((1, Constants.SEQUENCE_LENGTH, X_scaled.shape[1]))
                 
-                ax.relim()
-                ax.autoscale_view()
-                plt.draw()
-                plt.pause(0.1)
+                # Make prediction for next time step
+                next_prediction = model.predict(X_sequence, verbose=0)[0][0]
                 
-                # Print current values and difference
-                difference = abs(actual_values[-1] - predicted_values[-1])
-                print(f"\rActual: {actual_values[-1]:.2f}, Predicted: {predicted_values[-1]:.2f}, Difference: {difference:.2f}", end="")
+                # Update plot with sequence length window
+                if len(time_steps) > Constants.SEQUENCE_LENGTH:
+                    time_steps = time_steps[-Constants.SEQUENCE_LENGTH:]
+                    actual_values = actual_values[-Constants.SEQUENCE_LENGTH:]
+                    predicted_values = predicted_values[-Constants.SEQUENCE_LENGTH:]
+                
+                if actual_values:  # Only plot if we have data
+                    actual_line.set_data(time_steps, actual_values)
+                    pred_line.set_data(time_steps, predicted_values)
+                    
+                    ax.relim()
+                    ax.autoscale_view()
+                    plt.draw()
+                    plt.pause(0.1)
+                    
+                    # Print current values and prediction for next step
+                    if len(actual_values) > 0:
+                        current_actual = actual_values[-1]
+                        current_pred = predicted_values[-1]
+                        difference = abs(current_actual - current_pred)
+                        print(f"\rCurrent Step - Actual: {current_actual:.2f}, Predicted: {current_pred:.2f}, "
+                              f"Difference: {difference:.2f}, Next Step Prediction: {next_prediction:.2f}", end="")
             else:
-                print(f"Collecting data: {len(time_steps)}/{Constants.SEQUENCE_LENGTH}", end="\r")
+                print(f"Collecting data: {len(sequence_buffer)}/{Constants.SEQUENCE_LENGTH}", end="\r")
             
             features.reset()
             last_save_time = current_time

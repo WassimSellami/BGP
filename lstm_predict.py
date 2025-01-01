@@ -1,5 +1,4 @@
 import pandas as pd
-from br import mean_absolute_percentage_error
 import numpy as np
 from tensorflow import keras
 from tensorflow.keras.models import load_model
@@ -12,6 +11,21 @@ from sklearn.metrics import (
     r2_score
 )
 import os
+
+def mean_absolute_percentage_error(y_true, y_pred): 
+    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+
+def window_data(X, Y, window=7):
+    '''
+    Creates sliding windows for sequential prediction
+    '''
+    x = []
+    y = []
+    for i in range(window-1, len(X)):
+        x.append(X[i-window+1:i+1])
+        y.append(Y[i])
+    return np.array(x), np.array(y)
 
 # Create prediction_results directory if it doesn't exist
 os.makedirs('prediction_results', exist_ok=True)
@@ -45,30 +59,46 @@ X_test_df, y_test = create_time_features(test_df, target=Constants.FEATURE_NB_A_
 # Scale the features
 X_test_scaled = scaler.transform(X_test_df)
 
-# Reshape for LSTM
-X_test_scaled = X_test_scaled.reshape((X_test_scaled.shape[0], 1, X_test_scaled.shape[1]))
+# Create windowed data for prediction
+X_test_w, y_test_w = window_data(X_test_scaled, y_test, window=Constants.SEQUENCE_LENGTH)
 
 # Make predictions
-predictions = model.predict(X_test_scaled)
+predictions = model.predict(X_test_w)
 
-# Create comparison plot
-plt.figure(figsize=(12, 8))
-plt.plot(y_test.values, label='Original', linewidth=4.0, color='black')
-plt.plot(predictions, color='#FF1493', label='LSTM', linewidth=4.0)
-plt.xticks(fontsize=15, fontweight="bold")
-plt.yticks(fontsize=15, fontweight="bold")
-plt.xlabel('Time steps', fontsize=23, fontweight="bold")
+# Create comparison plot for first 5 time steps
+plt.figure(figsize=(15, 8))
+
+# Get first 5 time steps
+time_steps = range(5)
+actuals = y_test_w[:5].flatten()  # Flatten the array
+preds = predictions[:5].flatten()  # Flatten the predictions
+
+# Plot with bars side by side
+x = np.arange(len(time_steps))
+width = 0.35
+
+# Create bar plots
+plt.bar(x - width/2, actuals, width, label='Actual', color='black')
+plt.bar(x + width/2, preds, width, label='Predicted', color='#FF1493')
+
+# Add value labels on top of each bar
+for i in range(len(time_steps)):
+    plt.text(x[i] - width/2, actuals[i], f'{actuals[i]:.0f}', ha='center', va='bottom')
+    plt.text(x[i] + width/2, preds[i], f'{preds[i]:.0f}', ha='center', va='bottom')
+
+plt.xlabel('Time Steps', fontsize=23, fontweight="bold")
 plt.ylabel('Number of Announcements & W', fontsize=27, fontweight="bold")
-plt.yscale("log")
-plt.legend(fontsize=28, loc='upper left')
+plt.title('Actual vs Predicted Values - First 5 Time Steps', fontsize=20, fontweight="bold")
+plt.xticks(x, [f'Step {i+1}' for i in range(len(time_steps))], fontsize=15, fontweight="bold")
+plt.yticks(fontsize=15, fontweight="bold")
+plt.legend(fontsize=20, loc='upper left')
 plt.tight_layout()
 
 # Save the plot
 plt.savefig('prediction_results/test.png')
 plt.close()
 
-
-print("RMSE : ", np.sqrt(mean_squared_error(y_test, predictions)), end=",     ")
-print("MAE: ", mean_absolute_error(y_test, predictions), end=",     ")
-print("MAPE : ", mean_absolute_percentage_error(y_test, predictions), end=",     ")
-print("r2 : ", r2_score(y_test, predictions), end=",     ")
+print("RMSE : ", np.sqrt(mean_squared_error(y_test_w, predictions)), end=",     ")
+print("MAE: ", mean_absolute_error(y_test_w, predictions), end=",     ")
+print("MAPE : ", mean_absolute_percentage_error(y_test_w, predictions), end=",     ")
+print("r2 : ", r2_score(y_test_w, predictions), end=",     ")
