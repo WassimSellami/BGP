@@ -13,8 +13,8 @@ from constants import Constants
 import logging
 
 REAL_TIME_FEATURES_FILENAME = "output/real_time_collector_with_predictions.csv"
-MODEL_PATH = os.path.join('model', 'lstm_model.h5')
-SCALER_PATH = os.path.join('scaler', 'scaler.pkl')
+MODEL_PATH = os.path.join('model', 'lstm_model_1.h5')
+SCALER_PATH = os.path.join('scaler', 'scaler_1.pkl')
 
 # Set up logging at the start of your script
 logging.basicConfig(

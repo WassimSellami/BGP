@@ -5,8 +5,8 @@ from bgp_features import BGPFeatures
 from constants import Constants
 
 GENERATED_DATA_FILENAME = "generated_data/generated_data1.csv"
-FROM_TIME = datetime.strptime("2017-07-09 00:10:00", "%Y-%m-%d %H:%M:%S")
-ROW_COUNT = 500
+FROM_TIME = datetime.strptime("2023-06-09 00:10:00", "%Y-%m-%d %H:%M:%S")
+ROW_COUNT = 180000
 TIME_OFFSET  = 7200
 UNTIL_TIME = FROM_TIME + timedelta(seconds=ROW_COUNT * Constants.TIME_WINDOW)
 

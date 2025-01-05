@@ -12,6 +12,9 @@ from sklearn.metrics import (
 )
 import os
 
+TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
+INPUT_FILE = os.path.join(TEST_DATA_DIR, 'test_data1.csv')
+
 def mean_absolute_percentage_error(y_true, y_pred): 
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
@@ -27,18 +30,14 @@ def window_data(X, Y, window=7):
         y.append(Y[i])
     return np.array(x), np.array(y)
 
-# Create prediction_results directory if it doesn't exist
 os.makedirs('prediction_results', exist_ok=True)
 
 def create_time_features(df, target=None):
     """
     Creates time series features from datetime index
     """
-    df_1 = pd.DataFrame(df, columns=[Constants.FEATURE_NB_A, Constants.FEATURE_NB_W, 
-                                   Constants.FEATURE_NB_A_W, Constants.FEATURE_NB_A_MA, 
-                                   Constants.FEATURE_NB_W_MA])
     
-    X = df_1
+    X = df
     if target:
         y = df[target]
         X = X.drop([target], axis=1)
@@ -46,12 +45,12 @@ def create_time_features(df, target=None):
     return X
 
 # Load the saved model and scaler
-model = load_model('model/lstm_model.h5')
-with open('scaler/scaler.pkl', 'rb') as f:
+model = load_model('model/lstm_model_1.h5')
+with open('scaler/scaler_1.pkl', 'rb') as f:
     scaler = pickle.load(f)
 
 # Load test data
-test_df = pd.read_csv('test_data/test_data1.csv')
+test_df = pd.read_csv(INPUT_FILE)
 
 # Prepare features
 X_test_df, y_test = create_time_features(test_df, target=Constants.FEATURE_NB_A_W)
@@ -69,9 +68,9 @@ predictions = model.predict(X_test_w)
 plt.figure(figsize=(15, 8))
 
 # Get first 5 time steps
-time_steps = range(5)
-actuals = y_test_w[:5].flatten()  # Flatten the array
-preds = predictions[:5].flatten()  # Flatten the predictions
+time_steps = range(Constants.PLOT_WINDOW)
+actuals = y_test_w[:Constants.PLOT_WINDOW].flatten()  # Flatten the array
+preds = predictions[:Constants.PLOT_WINDOW].flatten()  # Flatten the predictions
 
 # Plot with bars side by side
 x = np.arange(len(time_steps))
@@ -88,7 +87,7 @@ for i in range(len(time_steps)):
 
 plt.xlabel('Time Steps', fontsize=23, fontweight="bold")
 plt.ylabel('Number of Announcements & W', fontsize=27, fontweight="bold")
-plt.title('Actual vs Predicted Values - First 5 Time Steps', fontsize=20, fontweight="bold")
+plt.title('Actual vs Predicted Values - First  5Time Steps', fontsize=20, fontweight="bold")
 plt.xticks(x, [f'Step {i+1}' for i in range(len(time_steps))], fontsize=15, fontweight="bold")
 plt.yticks(fontsize=15, fontweight="bold")
 plt.legend(fontsize=20, loc='upper left')

@@ -14,8 +14,8 @@ from collections import deque
 app = Flask(__name__)
 CORS(app)
 
-MODEL_PATH = os.path.join('model', 'lstm_model.h5')
-SCALER_PATH = os.path.join('scaler', 'scaler.pkl')
+MODEL_PATH = os.path.join('model', 'lstm_model_1.h5')
+SCALER_PATH = os.path.join('scaler', 'scaler_1.pkl')
 
 def calculate_moving_average(records, field, window_size):
     if not records:
@@ -32,17 +32,18 @@ with open(SCALER_PATH, 'rb') as f:
 recent_records = []
 sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
 current_actual = 0
-next_prediction = None
+current_prediction = None  # This will store prediction made in previous step
+next_prediction = None     # This will store prediction for next step
 
 @app.route('/data')
 def get_data():
     return jsonify({
         "actual": current_actual,
-        "prediction": next_prediction
+        "prediction": current_prediction  # Return the prediction made in previous step
     })
 
 def bgp_collector():
-    global recent_records, sequence_buffer, current_actual, next_prediction
+    global recent_records, sequence_buffer, current_actual, current_prediction, next_prediction
     
     stream = pybgpstream.BGPStream(
         project="ris-live",
@@ -56,6 +57,11 @@ def bgp_collector():
             current_time = time.time()
             
             if current_time - last_save_time >= Constants.TIME_WINDOW:
+                # Update current actual value and align with previous prediction
+                current_actual = features.nb_A_W
+                current_prediction = next_prediction  # Use the prediction made in previous step
+                
+                # Create current record
                 current_record = {
                     'nb_A': features.nb_A,
                     'nb_W': features.nb_W,
@@ -68,14 +74,16 @@ def bgp_collector():
                 
                 nb_A_ma = calculate_moving_average(recent_records, 'nb_A', Constants.MA_WINDOW)
                 nb_W_ma = calculate_moving_average(recent_records, 'nb_W', Constants.MA_WINDOW)
+                nb_A_W_ma = calculate_moving_average(recent_records, 'nb_A_W', Constants.MA_WINDOW)
                 
                 # Create feature vector for prediction
                 feature_vector = pd.DataFrame([[
                     current_record['nb_A'],
                     current_record['nb_W'],
                     nb_A_ma,
-                    nb_W_ma
-                ]], columns=['nb_A', 'nb_W', 'nb_A_ma', 'nb_W_ma'])
+                    nb_W_ma,
+                    nb_A_W_ma
+                ]], columns=['nb_A', 'nb_W', 'nb_A_ma', 'nb_W_ma', 'nb_A_W_ma'])
                 
                 # Scale features
                 X_scaled = scaler.transform(feature_vector)
@@ -83,10 +91,7 @@ def bgp_collector():
                 # Add to sequence buffer
                 sequence_buffer.append(X_scaled[0])
                 
-                # Update current actual value
-                current_actual = current_record['nb_A_W']
-                
-                # Make prediction when we have enough sequence data
+                # Make prediction for next time step when we have enough sequence data
                 if len(sequence_buffer) == Constants.SEQUENCE_LENGTH:
                     # Reshape sequence for LSTM [samples, time steps, features]
                     X_sequence = np.array(list(sequence_buffer))

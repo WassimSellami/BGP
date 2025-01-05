@@ -40,8 +40,8 @@ def calculate_moving_average(records, field, window_size):
     return round(sum(values) / len(values), 2)
 
 # Load the LSTM model and scaler
-model = load_model('model/lstm_model.h5')
-with open('scaler/scaler.pkl', 'rb') as f:
+model = load_model('model/lstm_model_1.h5')
+with open('scaler/scaler_1.pkl', 'rb') as f:
     scaler = pickle.load(f)
 
 # Initialize BGP stream
@@ -88,28 +88,26 @@ for elem in stream:
                 'nb_A_W': features.nb_A_W
             }
             
-            # Add current actual value and its corresponding prediction
-            if next_prediction is not None:
-                actual_values.append(current_record['nb_A_W'])
-                predicted_values.append(next_prediction)
-                time_steps.append(step)
-                step += 1
-            
             recent_records.append(current_record)
-            
             if len(recent_records) > Constants.MA_WINDOW:
                 recent_records.pop(0)
             
             nb_A_ma = calculate_moving_average(recent_records, 'nb_A', Constants.MA_WINDOW)
             nb_W_ma = calculate_moving_average(recent_records, 'nb_W', Constants.MA_WINDOW)
+            nb_A_W_ma = calculate_moving_average(recent_records, 'nb_A_W', Constants.MA_WINDOW)
+            
+            # Add current actual value (using moving average) and its corresponding prediction
+            if next_prediction is not None:
+                actual_values.append(nb_A_W_ma)  # Use moving average instead of raw value
+                predicted_values.append(next_prediction)
+                time_steps.append(step)
+                step += 1
             
             # Create feature vector for prediction
             feature_vector = pd.DataFrame([[
-                current_record['nb_A'],
-                current_record['nb_W'],
                 nb_A_ma,
-                nb_W_ma
-            ]], columns=['nb_A', 'nb_W', 'nb_A_ma', 'nb_W_ma'])
+                nb_W_ma,
+            ]], columns=['nb_A', 'nb_W'])
             
             # Scale features
             X_scaled = scaler.transform(feature_vector)
