@@ -1,248 +1,160 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>BGP Updates Real-time Prediction</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    <title>Real-time BGP Prediction</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #ffffff;
-            margin: 0;
-            padding: 40px;
-            max-width: 1400px;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
             margin: 0 auto;
-        }
-
-        h1 {
-            color: #2c3e50;
-            font-size: 24px;
-            font-weight: 500;
-            margin-bottom: 40px;
-            text-align: center;
-        }
-
-        .charts-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 40px;
-        }
-
-        .chart-wrapper {
-            background: #fff;
-            border: 1px solid #e1e4e8;
+            background-color: white;
+            padding: 20px;
             border-radius: 8px;
-            padding: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-
-        .chart-title {
-            color: #2c3e50;
-            font-size: 16px;
-            font-weight: 500;
-            margin-bottom: 20px;
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
         }
-
-        canvas {
-            width: 100% !important;
-            height: 400px !important;
+        #plot {
+            width: 100%;
+            height: 600px;
+        }
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .stat-box {
+            text-align: center;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            min-width: 200px;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <h1>BGP Updates Real-time Prediction</h1>
-    
-    <div class="charts-container">
-        <div class="chart-wrapper">
-            <div class="chart-title">BGP Announcements</div>
-            <canvas id="announcementsChart"></canvas>
-        </div>
-        <div class="chart-wrapper">
-            <div class="chart-title">BGP Withdrawals</div>
-            <canvas id="withdrawalsChart"></canvas>
+    <div class="container">
+        <h1>Real-time BGP Announcements & Withdrawals Prediction</h1>
+        <div id="plot"></div>
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">Current Value</div>
+                <div class="stat-value" id="current-value">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Next Prediction</div>
+                <div class="stat-value" id="prediction-value">-</div>
+            </div>
         </div>
     </div>
 
     <script>
+        // Get configuration from server-side
         const timeWindow = parseInt("{{ time_window }}");
         const plotWindow = parseInt("{{ plot_window }}");
         
-        // Initialize empty arrays for data
-        const nbAData = Array(plotWindow).fill(0);
-        const nbWData = Array(plotWindow).fill(0);
-        const predAData = Array(plotWindow).fill(0);
-        const predWData = Array(plotWindow).fill(0);
-        const labels = Array(plotWindow).fill('');
-
-        const chartConfig = {
-            type: 'line',
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    intersect: false,
-                    mode: 'index'
-                },
-                scales: {
-                    y: {
-                        type: 'logarithmic',
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.06)'
-                        },
-                        ticks: {
-                            color: '#666'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Count',
-                            color: '#666',
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            }
-                        }
-                    },
-                    x: {
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.06)'
-                        },
-                        ticks: {
-                            color: '#666'
-                        },
-                        title: {
-                            display: true,
-                            text: 'Time',
-                            color: '#666',
-                            font: {
-                                size: 12,
-                                weight: '500'
-                            }
-                        }
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        align: 'end',
-                        labels: {
-                            boxWidth: 12,
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            padding: 20,
-                            color: '#666',
-                            font: {
-                                size: 12
-                            }
-                        }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        titleColor: '#2c3e50',
-                        bodyColor: '#666',
-                        borderColor: '#e1e4e8',
-                        borderWidth: 1,
-                        padding: 12,
-                        displayColors: true,
-                        intersect: false,
-                        mode: 'index'
-                    }
-                }
+        let trace1 = {
+            x: [],
+            y: [],
+            name: 'Actual',
+            mode: 'lines',
+            line: {
+                color: 'blue',
+                width: 2
             }
         };
-
-        const announcementsChart = new Chart(
-            document.getElementById('announcementsChart'),
-            {
-                ...chartConfig,
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Current',
-                            data: nbAData,
-                            borderColor: '#3498db',
-                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 4
-                        },
-                        {
-                            label: 'Predicted',
-                            data: predAData,
-                            borderColor: '#e74c3c',
-                            borderWidth: 2,
-                            borderDash: [4, 4],
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 4
-                        }
-                    ]
-                }
+        
+        let trace2 = {
+            x: [],
+            y: [],
+            name: 'Predicted',
+            mode: 'lines',
+            line: {
+                color: 'red',
+                width: 2,
+                dash: 'dash'
             }
-        );
-
-        const withdrawalsChart = new Chart(
-            document.getElementById('withdrawalsChart'),
-            {
-                ...chartConfig,
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Current',
-                            data: nbWData,
-                            borderColor: '#2ecc71',
-                            backgroundColor: 'rgba(46, 204, 113, 0.1)',
-                            borderWidth: 2,
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 4
-                        },
-                        {
-                            label: 'Predicted',
-                            data: predWData,
-                            borderColor: '#f1c40f',
-                            borderWidth: 2,
-                            borderDash: [4, 4],
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 4
-                        }
-                    ]
-                }
+        };
+        
+        let layout = {
+            title: 'BGP Announcements & Withdrawals',
+            xaxis: {
+                title: 'Time Steps'
+            },
+            yaxis: {
+                title: 'Number of Announcements & Withdrawals'
+            },
+            showlegend: true,
+            legend: {
+                x: 0,
+                y: 1
             }
-        );
-
-        function updateCharts() {
+        };
+        
+        Plotly.newPlot('plot', [trace1, trace2], layout);
+        
+        let step = 0;
+        
+        function updateData() {
             fetch('http://localhost:3000/data')
                 .then(response => response.json())
                 .then(data => {
-                    // Update data arrays
-                    nbAData.push(data.current.nb_A);
-                    nbAData.shift();
-                    nbWData.push(data.current.nb_W);
-                    nbWData.shift();
-                    predAData.push(data.predictions.nb_A);
-                    predAData.shift();
-                    predWData.push(data.predictions.nb_W);
-                    predWData.shift();
-
-                    // Update charts
-                    announcementsChart.update('none');
-                    withdrawalsChart.update('none');
+                    document.getElementById('current-value').textContent = data.actual.toFixed(2);
+                    document.getElementById('prediction-value').textContent = 
+                        data.prediction ? data.prediction.toFixed(2) : '-';
+                    
+                    // Update actual values
+                    trace1.x.push(step);
+                    trace1.y.push(data.actual);
+                    
+                    // Update predicted values
+                    if (data.prediction !== null) {
+                        trace2.x.push(step);
+                        trace2.y.push(data.prediction);
+                    }
+                    
+                    // Keep only the last plotWindow points
+                    if (trace1.x.length > plotWindow) {
+                        trace1.x = trace1.x.slice(-plotWindow);
+                        trace1.y = trace1.y.slice(-plotWindow);
+                        trace2.x = trace2.x.slice(-plotWindow);
+                        trace2.y = trace2.y.slice(-plotWindow);
+                    }
+                    
+                    Plotly.update('plot', {
+                        x: [trace1.x, trace2.x],
+                        y: [trace1.y, trace2.y]
+                    });
+                    
+                    step++;
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(console.error);
         }
-
-        // Initial update
-        updateCharts();
-
-        // Update every TIME_WINDOW seconds
-        setInterval(updateCharts, timeWindow * 1000);
+        
+        // Update every timeWindow milliseconds
+        setInterval(updateData, timeWindow * 1000);
     </script>
 </body>
-</html> 
 </html> 

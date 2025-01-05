@@ -9,6 +9,7 @@ import pickle
 import pandas as pd
 from constants import Constants
 from flask_cors import CORS
+from collections import deque
 
 app = Flask(__name__)
 CORS(app)
@@ -22,22 +23,6 @@ def calculate_moving_average(records, field, window_size):
     values = [r[field] for r in records[-window_size:]]
     return round(sum(values) / len(values), 2)
 
-def create_time_features(record):
-    df = pd.DataFrame([{
-        Constants.FEATURE_NB_A: record[Constants.FEATURE_NB_A],
-        Constants.FEATURE_NB_W: record[Constants.FEATURE_NB_W],
-        Constants.FEATURE_NB_A_W: record[Constants.FEATURE_NB_A_W],
-        Constants.FEATURE_NB_A_MA: record[Constants.FEATURE_NB_A_MA],
-        Constants.FEATURE_NB_W_MA: record[Constants.FEATURE_NB_W_MA]
-    }])
-    return df
-
-def window_data(X, window=Constants.SEQUENCE_LENGTH):
-    x = []
-    for i in range(window-1, len(X)):
-        x.append(X[i-window+1:i+1])
-    return np.array(x)
-
 # Load model and scaler
 model = load_model(MODEL_PATH)
 with open(SCALER_PATH, 'rb') as f:
@@ -45,19 +30,19 @@ with open(SCALER_PATH, 'rb') as f:
 
 # Global variables to store state
 recent_records = []
-feature_sequences = []
-current_predictions = {"nb_A": 0, "nb_W": 0}
-current_values = {"nb_A": 0, "nb_W": 0}
+sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
+current_actual = 0
+next_prediction = None
 
 @app.route('/data')
 def get_data():
     return jsonify({
-        "current": current_values,
-        "predictions": current_predictions
+        "actual": current_actual,
+        "prediction": next_prediction
     })
 
 def bgp_collector():
-    global recent_records, feature_sequences, current_predictions, current_values
+    global recent_records, sequence_buffer, current_actual, next_prediction
     
     stream = pybgpstream.BGPStream(
         project="ris-live",
@@ -72,40 +57,43 @@ def bgp_collector():
             
             if current_time - last_save_time >= Constants.TIME_WINDOW:
                 current_record = {
-                    Constants.FEATURE_NB_A: features.nb_A,
-                    Constants.FEATURE_NB_W: features.nb_W,
-                    Constants.FEATURE_NB_A_W: features.nb_A_W
+                    'nb_A': features.nb_A,
+                    'nb_W': features.nb_W,
+                    'nb_A_W': features.nb_A_W
                 }
                 
                 recent_records.append(current_record)
                 if len(recent_records) > Constants.MA_WINDOW:
                     recent_records.pop(0)
                 
-                nb_A_ma = calculate_moving_average(recent_records, Constants.FEATURE_NB_A, Constants.MA_WINDOW)
-                nb_W_ma = calculate_moving_average(recent_records, Constants.FEATURE_NB_W, Constants.MA_WINDOW)
+                nb_A_ma = calculate_moving_average(recent_records, 'nb_A', Constants.MA_WINDOW)
+                nb_W_ma = calculate_moving_average(recent_records, 'nb_W', Constants.MA_WINDOW)
                 
-                current_record[Constants.FEATURE_NB_A_MA] = nb_A_ma
-                current_record[Constants.FEATURE_NB_W_MA] = nb_W_ma
+                # Create feature vector for prediction
+                feature_vector = pd.DataFrame([[
+                    current_record['nb_A'],
+                    current_record['nb_W'],
+                    nb_A_ma,
+                    nb_W_ma
+                ]], columns=['nb_A', 'nb_W', 'nb_A_ma', 'nb_W_ma'])
                 
-                features_df = create_time_features(current_record)
-                scaled_features = scaler.transform(features_df)[0]
-                feature_sequences.append(scaled_features)
+                # Scale features
+                X_scaled = scaler.transform(feature_vector)
                 
-                if len(feature_sequences) > Constants.SEQUENCE_LENGTH:
-                    feature_sequences.pop(0)
+                # Add to sequence buffer
+                sequence_buffer.append(X_scaled[0])
                 
-                if len(feature_sequences) == Constants.SEQUENCE_LENGTH:
-                    X = np.array([feature_sequences])
-                    predictions = model.predict(X, verbose=0)[0]
-                    current_predictions = {
-                        "nb_A": float(predictions[0]),
-                        "nb_W": float(predictions[1])
-                    }
+                # Update current actual value
+                current_actual = current_record['nb_A_W']
                 
-                current_values = {
-                    "nb_A": features.nb_A,
-                    "nb_W": features.nb_W
-                }
+                # Make prediction when we have enough sequence data
+                if len(sequence_buffer) == Constants.SEQUENCE_LENGTH:
+                    # Reshape sequence for LSTM [samples, time steps, features]
+                    X_sequence = np.array(list(sequence_buffer))
+                    X_sequence = X_sequence.reshape((1, Constants.SEQUENCE_LENGTH, X_scaled.shape[1]))
+                    
+                    # Make prediction for next time step
+                    next_prediction = float(model.predict(X_sequence, verbose=0)[0][0])
                 
                 features.reset()
                 last_save_time = current_time
