@@ -32,18 +32,17 @@ with open(SCALER_PATH, 'rb') as f:
 recent_records = []
 sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
 current_actual = 0
-current_prediction = None  # This will store prediction made in previous step
-next_prediction = None     # This will store prediction for next step
+current_prediction = None
 
 @app.route('/data')
 def get_data():
     return jsonify({
         "actual": current_actual,
-        "prediction": current_prediction  # Return the prediction made in previous step
+        "prediction": current_prediction
     })
 
 def bgp_collector():
-    global recent_records, sequence_buffer, current_actual, current_prediction, next_prediction
+    global recent_records, sequence_buffer, current_actual, current_prediction
     
     stream = pybgpstream.BGPStream(
         project="ris-live",
@@ -57,10 +56,6 @@ def bgp_collector():
             current_time = time.time()
             
             if current_time - last_save_time >= Constants.TIME_WINDOW:
-                # Update current actual value and align with previous prediction
-                current_actual = features.nb_A_W
-                current_prediction = next_prediction  # Use the prediction made in previous step
-                
                 # Create current record
                 current_record = {
                     'nb_A': features.nb_A,
@@ -76,29 +71,28 @@ def bgp_collector():
                 nb_W_ma = calculate_moving_average(recent_records, 'nb_W', Constants.MA_WINDOW)
                 nb_A_W_ma = calculate_moving_average(recent_records, 'nb_A_W', Constants.MA_WINDOW)
                 
-                # Create feature vector for prediction
+                # Create feature vector for current state
                 feature_vector = pd.DataFrame([[
-                    current_record['nb_A'],
-                    current_record['nb_W'],
                     nb_A_ma,
                     nb_W_ma,
-                    nb_A_W_ma
-                ]], columns=['nb_A', 'nb_W', 'nb_A_ma', 'nb_W_ma', 'nb_A_W_ma'])
+                ]], columns=['nb_A', 'nb_W'])
                 
                 # Scale features
                 X_scaled = scaler.transform(feature_vector)
                 
-                # Add to sequence buffer
+                # Update sequence buffer with current features
                 sequence_buffer.append(X_scaled[0])
                 
-                # Make prediction for next time step when we have enough sequence data
+                # If we have enough sequence data, make prediction for current value
                 if len(sequence_buffer) == Constants.SEQUENCE_LENGTH:
-                    # Reshape sequence for LSTM [samples, time steps, features]
+                    # Make prediction using current sequence
                     X_sequence = np.array(list(sequence_buffer))
                     X_sequence = X_sequence.reshape((1, Constants.SEQUENCE_LENGTH, X_scaled.shape[1]))
+                    prediction = float(model.predict(X_sequence, verbose=0)[0][0])
                     
-                    # Make prediction for next time step
-                    next_prediction = float(model.predict(X_sequence, verbose=0)[0][0])
+                    # Update current actual value and its prediction
+                    current_actual = nb_A_W_ma
+                    current_prediction = prediction
                 
                 features.reset()
                 last_save_time = current_time

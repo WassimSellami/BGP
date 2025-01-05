@@ -4,8 +4,8 @@ import pandas as pd
 import numpy as np
 
 TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
-INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'generated_data_1.csv')
-OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'test_data_1.csv')
+INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'real_time_generated_data.csv')
+OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'real_time_test_data.csv')
 
 def calculate_moving_average(data, window_size=Constants.MA_WINDOW):
     """Calculate moving average for a pandas series"""

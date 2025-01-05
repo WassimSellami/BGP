@@ -67,11 +67,9 @@ plt.grid(True)
 actual_values = []
 predicted_values = []
 time_steps = []
-step = 0
 
 # Initialize sequence buffer for LSTM
 sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
-next_prediction = None  # Store the prediction for the next time step
 
 print(f"Collecting initial {Constants.SEQUENCE_LENGTH} data points...")
 print("Press Ctrl+C to stop and save the plot...")
@@ -82,6 +80,7 @@ for elem in stream:
         current_time = time.time()
         
         if current_time - last_save_time >= Constants.TIME_WINDOW:
+            # Create current record
             current_record = {
                 'nb_A': features.nb_A,
                 'nb_W': features.nb_W,
@@ -96,14 +95,7 @@ for elem in stream:
             nb_W_ma = calculate_moving_average(recent_records, 'nb_W', Constants.MA_WINDOW)
             nb_A_W_ma = calculate_moving_average(recent_records, 'nb_A_W', Constants.MA_WINDOW)
             
-            # Add current actual value (using moving average) and its corresponding prediction
-            if next_prediction is not None:
-                actual_values.append(nb_A_W_ma)  # Use moving average instead of raw value
-                predicted_values.append(next_prediction)
-                time_steps.append(step)
-                step += 1
-            
-            # Create feature vector for prediction
+            # Create feature vector for current state
             feature_vector = pd.DataFrame([[
                 nb_A_ma,
                 nb_W_ma,
@@ -112,42 +104,46 @@ for elem in stream:
             # Scale features
             X_scaled = scaler.transform(feature_vector)
             
-            # Add to sequence buffer
+            # Update sequence buffer with current features
             sequence_buffer.append(X_scaled[0])
             
-            # Make prediction for next time step when we have enough sequence data
+            # If we have enough sequence data, make prediction for current value
             if len(sequence_buffer) == Constants.SEQUENCE_LENGTH:
-                # Reshape sequence for LSTM [samples, time steps, features]
+                # Make prediction using current sequence
                 X_sequence = np.array(list(sequence_buffer))
                 X_sequence = X_sequence.reshape((1, Constants.SEQUENCE_LENGTH, X_scaled.shape[1]))
+                prediction = float(model.predict(X_sequence, verbose=0)[0][0])
                 
-                # Make prediction for next time step
-                next_prediction = model.predict(X_sequence, verbose=0)[0][0]
+                # Add current actual value and its prediction
+                actual_values.append(nb_A_W_ma)
+                predicted_values.append(prediction)
                 
-                # Update plot with sequence length window
-                if len(time_steps) > Constants.SEQUENCE_LENGTH:
-                    time_steps = time_steps[-Constants.SEQUENCE_LENGTH:]
-                    actual_values = actual_values[-Constants.SEQUENCE_LENGTH:]
-                    predicted_values = predicted_values[-Constants.SEQUENCE_LENGTH:]
+                # Update time steps to show the latest window
+                if len(actual_values) <= Constants.PLOT_WINDOW:
+                    time_steps = list(range(len(actual_values)))
+                else:
+                    # Slide the window to show latest points
+                    time_steps = list(range(len(actual_values) - Constants.PLOT_WINDOW, len(actual_values)))
+                    actual_values = actual_values[-Constants.PLOT_WINDOW:]
+                    predicted_values = predicted_values[-Constants.PLOT_WINDOW:]
                 
-                if actual_values:  # Only plot if we have data
-                    actual_line.set_data(time_steps, actual_values)
-                    pred_line.set_data(time_steps, predicted_values)
-                    
-                    ax.relim()
-                    ax.autoscale_view()
-                    plt.draw()
-                    plt.pause(0.1)
-                    
-                    # Print current values and prediction for next step
-                    if len(actual_values) > 0:
-                        current_actual = actual_values[-1]
-                        current_pred = predicted_values[-1]
-                        difference = abs(current_actual - current_pred)
-                        print(f"\rCurrent Step - Actual: {current_actual:.2f}, Predicted: {current_pred:.2f}, "
-                              f"Difference: {difference:.2f}, Next Step Prediction: {next_prediction:.2f}", end="")
+                # Update plot
+                actual_line.set_data(time_steps, actual_values)
+                pred_line.set_data(time_steps, predicted_values)
+                
+                # Update axis limits to show moving window
+                ax.set_xlim(time_steps[0], time_steps[-1] + 1)
+                ax.relim()
+                ax.autoscale_view(scaley=True)  # Only autoscale y-axis
+                plt.draw()
+                plt.pause(0.1)
+                
+                # Print current values
+                print(f"\rStep {len(time_steps) + (len(actual_values) - Constants.PLOT_WINDOW if len(actual_values) > Constants.PLOT_WINDOW else 0)} - "
+                      f"Actual: {nb_A_W_ma:.2f}, Prediction: {prediction:.2f}, "
+                      f"Difference: {abs(nb_A_W_ma - prediction):.2f}", end="")
             else:
-                print(f"Collecting data: {len(sequence_buffer)}/{Constants.SEQUENCE_LENGTH}", end="\r")
+                print(f"\rCollecting data: {len(sequence_buffer)}/{Constants.SEQUENCE_LENGTH}", end="")
             
             features.reset()
             last_save_time = current_time

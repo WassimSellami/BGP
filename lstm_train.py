@@ -23,7 +23,7 @@ WINDOW_LENGTH = Constants.SEQUENCE_LENGTH
 BATCH_SIZE = Constants.BATCH_SIZE
 BUFFER_SIZE = Constants.BUFFER_SIZE
 TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'train_data')
-INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'rrc12-ma-1-g3.csv')
+INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'rrc12-ma-30-g3.csv')
 
 def window_data(X, Y, window=7):
     '''
@@ -31,13 +31,12 @@ def window_data(X, Y, window=7):
     '''
     x = []
     y = []
-    for i in range(window-1, len(X)):
+    for i in range(window-1, len(X)-1):
         x.append(X[i-window+1:i+1])
         y.append(Y[i])
     return np.array(x), np.array(y)
 
-# Read data and take only the first MAX_TRAIN_ROWS
-df = pd.read_csv(INPUT_FILE).head(Constants.MAX_TRAIN_ROWS)
+df = pd.read_csv(INPUT_FILE)
 print(f"Using {len(df)} rows for training and testing")
 
 df_training, df_test = train_test_split(df, test_size=0.2, random_state=Constants.SEED)
@@ -121,7 +120,7 @@ plt.show()
 os.makedirs('model', exist_ok=True)
 os.makedirs('scaler', exist_ok=True)
 
-model.save('model/lstm_model_1.h5')
+model.save('model/lstm_model_30.h5')
 
-with open('scaler/scaler_1.pkl', 'wb') as f:
+with open('scaler/scaler_3.pkl', 'wb') as f:
     pickle.dump(scaler, f)

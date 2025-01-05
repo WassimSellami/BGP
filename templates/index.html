@@ -56,7 +56,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Real-time BGP Announcements & Withdrawals Prediction</h1>
+        <h1>Real-time BGP Announcements & Withdrawals</h1>
         <div id="plot"></div>
         <div class="stats">
             <div class="stat-box">
@@ -64,7 +64,7 @@
                 <div class="stat-value" id="current-value">-</div>
             </div>
             <div class="stat-box">
-                <div class="stat-label">Next Prediction</div>
+                <div class="stat-label">Current Prediction</div>
                 <div class="stat-value" id="prediction-value">-</div>
             </div>
         </div>
@@ -79,29 +79,38 @@
             x: [],
             y: [],
             name: 'Actual',
-            mode: 'lines',
+            mode: 'lines+markers',
             line: {
                 color: 'blue',
                 width: 2
+            },
+            marker: {
+                size: 8,
+                symbol: 'circle'
             }
         };
         
         let trace2 = {
             x: [],
             y: [],
-            name: 'Predicted',
-            mode: 'lines',
+            name: 'Current Prediction',
+            mode: 'lines+markers',
             line: {
                 color: 'red',
                 width: 2,
                 dash: 'dash'
+            },
+            marker: {
+                size: 8,
+                symbol: 'square'
             }
         };
         
         let layout = {
             title: 'BGP Announcements & Withdrawals',
             xaxis: {
-                title: 'Time Steps'
+                title: 'Time Steps',
+                range: [0, plotWindow]
             },
             yaxis: {
                 title: 'Number of Announcements & Withdrawals'
@@ -125,15 +134,11 @@
                     document.getElementById('prediction-value').textContent = 
                         data.prediction ? data.prediction.toFixed(2) : '-';
                     
-                    // Update actual values
+                    // Add new points
                     trace1.x.push(step);
                     trace1.y.push(data.actual);
-                    
-                    // Update predicted values
-                    if (data.prediction !== null) {
-                        trace2.x.push(step);
-                        trace2.y.push(data.prediction);
-                    }
+                    trace2.x.push(step);
+                    trace2.y.push(data.prediction);
                     
                     // Keep only the last plotWindow points
                     if (trace1.x.length > plotWindow) {
@@ -141,12 +146,15 @@
                         trace1.y = trace1.y.slice(-plotWindow);
                         trace2.x = trace2.x.slice(-plotWindow);
                         trace2.y = trace2.y.slice(-plotWindow);
+                        
+                        // Update x-axis range to show sliding window
+                        layout.xaxis.range = [step - plotWindow + 1, step + 1];
                     }
                     
-                    Plotly.update('plot', {
-                        x: [trace1.x, trace2.x],
-                        y: [trace1.y, trace2.y]
-                    });
+                    Plotly.update('plot', 
+                        {x: [trace1.x, trace2.x], y: [trace1.y, trace2.y]},
+                        layout
+                    );
                     
                     step++;
                 })
