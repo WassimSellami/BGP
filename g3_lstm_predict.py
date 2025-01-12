@@ -65,19 +65,29 @@ plt.figure(figsize=(15, 8))
 NUM_PLOTS = Constants.PLOT_WINDOW
 
 time_steps = range(NUM_PLOTS)
-actuals = y_test_actual[:NUM_PLOTS, 0]
-preds = predictions_actual[:NUM_PLOTS, 0]
+actuals_nb_w = y_test_actual[:NUM_PLOTS, 1]
+preds_nb_w = predictions_actual[:NUM_PLOTS, 1]
+actuals_nb_a = y_test_actual[:NUM_PLOTS, 0]
+preds_nb_a = predictions_actual[:NUM_PLOTS, 0]
 
-plt.plot(time_steps, actuals, label='Actual', color='#1f77b4', linewidth=2.5)
-plt.plot(time_steps, preds, label='Predicted', color='#ff7f0e', linestyle='--', linewidth=2.5)
-
+plt.subplot(2, 1, 1)
+plt.plot(time_steps, actuals_nb_w, label='Actual - FEATURE_NB_W', color='#1f77b4', linewidth=2.5)
+plt.plot(time_steps, preds_nb_w, label='Predicted - FEATURE_NB_W', color='#ff7f0e', linestyle='--', linewidth=2.5)
 plt.xlabel('Time Steps', fontsize=14, fontweight='bold')
-plt.ylabel('Values (Actual and Predicted)', fontsize=14, fontweight='bold')
-plt.title(f'Actual vs Predicted Values (First {NUM_PLOTS} Time Steps)', fontsize=16, fontweight='bold')
+plt.ylabel('Values', fontsize=14, fontweight='bold')
+plt.title(f'Actual vs Predicted FEATURE_NB_W (First {NUM_PLOTS} Time Steps)', fontsize=16, fontweight='bold')
+plt.legend(fontsize=12)
+plt.grid(True, linestyle='--', alpha=0.6)
+
+plt.subplot(2, 1, 2)
+plt.plot(time_steps, actuals_nb_a, label='Actual - FEATURE_NB_A', color='#1f77b4', linewidth=2.5)
+plt.plot(time_steps, preds_nb_a, label='Predicted - FEATURE_NB_A', color='#ff7f0e', linestyle='--', linewidth=2.5)
+plt.xlabel('Time Steps', fontsize=14, fontweight='bold')
+plt.ylabel('Values', fontsize=14, fontweight='bold')
+plt.title(f'Actual vs Predicted FEATURE_NB_A (First {NUM_PLOTS} Time Steps)', fontsize=16, fontweight='bold')
 plt.legend(fontsize=12)
 plt.grid(True, linestyle='--', alpha=0.6)
 
 os.makedirs('prediction_results', exist_ok=True)
 plt.savefig(f'prediction_results/g3_test_predictions_{Constants.TIME_WINDOW}.png', dpi=300)
 plt.close()
-
