@@ -4,7 +4,7 @@ class Constants:
     TIME_WINDOW = 1
     MA_WINDOW = 20
     SEQUENCE_LENGTH = 24
-    PLOT_WINDOW = 1000
+    PLOT_WINDOW = 30
     SEED = 42
     BATCH_SIZE = 32
     BUFFER_SIZE = 100
