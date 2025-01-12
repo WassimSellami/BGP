@@ -50,21 +50,38 @@ features = BGPFeatures()
 last_save_time = time.time()
 recent_records = []
 
-plt.ion()
-fig, ax = plt.subplots(figsize=(12, 6))
-actual_line_A, = ax.plot([], [], 'b-', label='Actual nb_A', linewidth=2)
-pred_line_A, = ax.plot([], [], 'b--', label='Predicted nb_A', linewidth=2)
 
-ax.set_xlabel('Time Steps', fontsize=12, fontweight='bold')
-ax.set_ylabel('Number of Announcements', fontsize=12, fontweight='bold')
-ax.set_title('Real-time BGP Announcements vs Predictions', fontsize=14, fontweight='bold')
-ax.legend(fontsize=10)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 12))
+
+ax1.set_title('Real-time BGP Announcements - nb_A', fontsize=14, fontweight='bold')
+ax1.set_xlabel('Time Steps', fontsize=12, fontweight='bold')
+ax1.set_ylabel('Number of Announcements', fontsize=12, fontweight='bold')
+
+ax2.set_title('Real-time BGP Announcements - nb_W', fontsize=14, fontweight='bold')
+ax2.set_xlabel('Time Steps', fontsize=12, fontweight='bold')
+ax2.set_ylabel('Number of Announcements', fontsize=12, fontweight='bold')
+
+
+actual_line_A, = ax1.plot([], [], 'b-', label='Actual nb_A', linewidth=2)
+pred_line_A, = ax1.plot([], [], 'b--', label='Predicted nb_A', linewidth=2)
+
+actual_line_W, = ax2.plot([], [], 'g-', label='Actual nb_W', linewidth=2)
+pred_line_W, = ax2.plot([], [], 'g--', label='Predicted nb_W', linewidth=2)
+
+ax1.legend(fontsize=10)
+ax2.legend(fontsize=10)
+
 plt.grid(True)
 
 time_steps = []
-
 actual_values_A = []
 predicted_values_A = []
+
+actual_values_W = []
+predicted_values_W = []
+
+actual_values_A_W = []
+predicted_values_A_W = []
 
 sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
 
@@ -112,6 +129,12 @@ for elem in stream:
                 actual_values_A.append(nb_A_ma)
                 predicted_values_A.append(prediction[0][0])  # Accessing the first element correctly
 
+                actual_values_W.append(nb_W_ma)
+                predicted_values_W.append(prediction[0][1])
+
+                actual_values_A_W.append(nb_A_W_ma)
+                predicted_values_A_W.append(prediction[0][2])
+
                 if len(actual_values_A) <= Constants.PLOT_WINDOW:
                     time_steps = list(range(len(actual_values_A)))
                 else:
@@ -119,12 +142,26 @@ for elem in stream:
                     actual_values_A = actual_values_A[-Constants.PLOT_WINDOW:]
                     predicted_values_A = predicted_values_A[-Constants.PLOT_WINDOW:]
 
+                    actual_values_W = actual_values_W[-Constants.PLOT_WINDOW:]
+                    predicted_values_W = predicted_values_W[-Constants.PLOT_WINDOW:]
+
+                    actual_values_A_W = actual_values_A_W[-Constants.PLOT_WINDOW:]
+                    predicted_values_A_W = predicted_values_A_W[-Constants.PLOT_WINDOW:]
+
                 actual_line_A.set_data(time_steps, actual_values_A)
                 pred_line_A.set_data(time_steps, predicted_values_A)
 
-                ax.set_xlim(time_steps[0], time_steps[-1] + 1)
-                ax.relim()
-                ax.autoscale_view(scaley=True)
+                actual_line_W.set_data(time_steps, actual_values_W)
+                pred_line_W.set_data(time_steps, predicted_values_W)
+
+                ax1.set_xlim(time_steps[0], time_steps[-1] + 1)
+                ax2.set_xlim(time_steps[0], time_steps[-1] + 1)
+
+                ax1.relim()
+                ax1.autoscale_view(scaley=True)
+                ax2.relim()
+                ax2.autoscale_view(scaley=True)
+
                 plt.draw()
                 plt.pause(0.1)
 
