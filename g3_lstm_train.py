@@ -8,7 +8,7 @@ from tensorflow.keras.losses import MeanSquaredError
 import matplotlib.pyplot as plt
 import pickle
 
-INPUT_FILE = f'train_data/rrc12-ma-{Constants.TIME_WINDOW}-g3.csv'
+INPUT_FILE = f'train_data/g3_rrc12_{Constants.TIME_WINDOW}_ma.csv'
 FEATURE_COLUMNS = [Constants.FEATURE_NB_A, Constants.FEATURE_NB_W, Constants.FEATURE_NB_A_W]    
 
 def prepare_data(filename, feature_columns):

@@ -1,21 +1,18 @@
 from constants import Constants
 import os
 import pandas as pd
-import numpy as np
 
-TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
-INPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'real_time_generated_data.csv')
-OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, 'real_time_test_data.csv')
+TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'train_data')
+INPUT_FILE = os.path.join(TRAIN_DATA_DIR, f'g3_rrc12_{Constants.TIME_WINDOW}_generated.csv')
+OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, f'g3_rrc12_{Constants.TIME_WINDOW}_ma.csv')
 
 def calculate_moving_average(data, window_size=Constants.MA_WINDOW):
     """Calculate moving average for a pandas series"""
     return data.rolling(window=window_size, min_periods=1).mean().round(2)
 
 def smooth_features(input_file=INPUT_FILE, window_size=Constants.MA_WINDOW):
-    # Read the CSV file
     df = pd.read_csv(input_file)
     
-    # Calculate moving average for each column
     df[Constants.FEATURE_NB_A] = calculate_moving_average(df[Constants.FEATURE_NB_A], window_size)
     df[Constants.FEATURE_NB_W] = calculate_moving_average(df[Constants.FEATURE_NB_W], window_size)
     df[Constants.FEATURE_NB_A_W] = calculate_moving_average(df[Constants.FEATURE_NB_A_W], window_size)

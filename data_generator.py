@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from bgp_features import BGPFeatures
 from constants import Constants
 
-GENERATED_DATA_FILENAME = f"generated_data/g3_rrc12_generated_{Constants.TIME_WINDOW}.csv"
+GENERATED_DATA_FILENAME = f"generated_data/g3_rrc12_{Constants.TIME_WINDOW}_generated.csv"
 FROM_TIME = datetime.strptime("2023-06-09 00:10:00", "%Y-%m-%d %H:%M:%S")
-ROW_COUNT = 50000
+ROW_COUNT = 100000
 TIME_OFFSET  = 7200
 UNTIL_TIME = FROM_TIME + timedelta(seconds=ROW_COUNT * Constants.TIME_WINDOW)
 
@@ -34,7 +34,8 @@ for elem in stream:
         elif elem.type == 'W':
             features_dict[window_index][Constants.FEATURE_NB_W] += 1
             features_dict[window_index][Constants.FEATURE_NB_A_W] = features_dict[window_index][Constants.FEATURE_NB_A] + features_dict[window_index][Constants.FEATURE_NB_W]
-
+        if window_index % 100 == 0 and features_dict[window_index][Constants.FEATURE_NB_A] == 1:
+              print(window_index)
 with open(GENERATED_DATA_FILENAME, mode='w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow([Constants.FEATURE_NB_A, Constants.FEATURE_NB_W, Constants.FEATURE_NB_A_W])
