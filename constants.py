@@ -10,7 +10,7 @@ class Constants:
     BUFFER_SIZE = 100
     SEQUENCE_LENGTH = 24
     EVALUATION_INTERVAL = 150
-    EPOCHS = 10
+    EPOCHS = 100
     FEATURE_NB_A = 'nb_A'         
     FEATURE_NB_W = 'nb_W'
     FEATURE_NB_A_W = 'nb_A_W'

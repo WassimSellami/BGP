@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from constants import Constants
 import numpy as np
@@ -93,7 +94,13 @@ def train_and_evaluate():
     
     mse = np.mean((y_test_actual - test_predictions) ** 2)
     rmse = np.sqrt(mse)
-    print(f'Test Set RMSE: {rmse}')
+    mape = np.mean(np.abs((y_test_actual - test_predictions) / y_test_actual)) * 100
+    
+    metrics_file_path = 'prediction_results/train_metrics'
+    with open(metrics_file_path, 'w') as metrics_file:
+        metrics_file.write(f"Mean Squared Error (MSE): {mse}\n")
+        metrics_file.write(f"Root Mean Squared Error (RMSE): {rmse}\n")
+        metrics_file.write(f"Mean Absolute Percentage Error (MAPE): {mape}\n")
     
     with open(f'scalers/g3_scaler_{Constants.TIME_WINDOW}.pkl', 'wb') as f:
         pickle.dump(scaler, f)
