@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time BGP Prediction</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .plot-container {
+            display: flex;
+            flex-direction: column;
+            gap: 40px;
+        }
+        .stat-box {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Real-time BGP Announcements & Withdrawals</h1>
+        
+        <div class="plot-container">
+            <div id="plot-A" style="width:100%; height:400px;"></div>
+            <div id="plot-W" style="width:100%; height:400px;"></div>
+            <div id="plot-A_W" style="width:100%; height:400px;"></div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-label">Current Value (A):</div>
+                <div class="stat-value" id="current-A">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Prediction (A):</div>
+                <div class="stat-value" id="prediction-A">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Current Value (W):</div>
+                <div class="stat-value" id="current-W">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Prediction (W):</div>
+                <div class="stat-value" id="prediction-W">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Current Value (A_W):</div>
+                <div class="stat-value" id="current-A_W">-</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label">Prediction (A_W):</div>
+                <div class="stat-value" id="prediction-A_W">-</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const timeWindow = parseInt("{{ time_window }}") * 1000;
+        let trace1_A = {
+            x: [],
+            y: [],
+            name: 'Actual A',
+            mode: 'lines+markers',
+            line: { color: 'blue', width: 2 },
+            marker: { size: 8, symbol: 'circle' }
+        };
+
+        let trace2_A = {
+            x: [],
+            y: [],
+            name: 'Prediction A',
+            mode: 'lines+markers',
+            line: { color: 'red', width: 2, dash: 'dash' },
+            marker: { size: 8, symbol: 'square' }
+        };
+
+        let trace1_W = {
+            x: [],
+            y: [],
+            name: 'Actual W',
+            mode: 'lines+markers',
+            line: { color: 'green', width: 2 },
+            marker: { size: 8, symbol: 'circle' }
+        };
+
+        let trace2_W = {
+            x: [],
+            y: [],
+            name: 'Prediction W',
+            mode: 'lines+markers',
+            line: { color: 'orange', width: 2, dash: 'dash' },
+            marker: { size: 8, symbol: 'square' }
+        };
+
+        let trace1_A_W = {
+            x: [],
+            y: [],
+            name: 'Actual A_W',
+            mode: 'lines+markers',
+            line: { color: 'purple', width: 2 },
+            marker: { size: 8, symbol: 'circle' }
+        };
+
+        let trace2_A_W = {
+            x: [],
+            y: [],
+            name: 'Prediction A_W',
+            mode: 'lines+markers',
+            line: { color: 'yellow', width: 2, dash: 'dash' },
+            marker: { size: 8, symbol: 'square' }
+        };
+
+        let layout_A = {
+            title: 'BGP Announcements (A)',
+            xaxis: { title: 'Time Steps' },
+            yaxis: { title: 'Number of Announcements' },
+            showlegend: true
+        };
+
+        let layout_W = {
+            title: 'BGP Withdrawals (W)',
+            xaxis: { title: 'Time Steps' },
+            yaxis: { title: 'Number of Withdrawals' },
+            showlegend: true
+        };
+
+        let layout_A_W = {
+            title: 'BGP Announcements & Withdrawals (A_W)',
+            xaxis: { title: 'Time Steps' },
+            yaxis: { title: 'Number of Announcements & Withdrawals' },
+            showlegend: true
+        };
+
+        Plotly.newPlot('plot-A', [trace1_A, trace2_A], layout_A);
+        Plotly.newPlot('plot-W', [trace1_W, trace2_W], layout_W);
+        Plotly.newPlot('plot-A_W', [trace1_A_W, trace2_A_W], layout_A_W);
+
+        let step = 0;
+
+        function updateData() {
+            fetch('http://localhost:3000/data')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('current-A').textContent = data.actual_A.toFixed(2);
+                    document.getElementById('prediction-A').textContent = data.prediction_A.toFixed(2);
+                    document.getElementById('current-W').textContent = data.actual_W.toFixed(2);
+                    document.getElementById('prediction-W').textContent = data.prediction_W.toFixed(2);
+                    document.getElementById('current-A_W').textContent = data.actual_A_W.toFixed(2);
+                    document.getElementById('prediction-A_W').textContent = data.prediction_A_W.toFixed(2);
+
+                    trace1_A.x.push(step);
+                    trace1_A.y.push(data.actual_A);
+                    trace2_A.x.push(step);
+                    trace2_A.y.push(data.prediction_A);
+
+                    trace1_W.x.push(step);
+                    trace1_W.y.push(data.actual_W);
+                    trace2_W.x.push(step);
+                    trace2_W.y.push(data.prediction_W);
+
+                    trace1_A_W.x.push(step);
+                    trace1_A_W.y.push(data.actual_A_W);
+                    trace2_A_W.x.push(step);
+                    trace2_A_W.y.push(data.prediction_A_W);
+
+                    Plotly.update('plot-A', {x: [trace1_A.x, trace2_A.x], y: [trace1_A.y, trace2_A.y]});
+                    Plotly.update('plot-W', {x: [trace1_W.x, trace2_W.x], y: [trace1_W.y, trace2_W.y]});
+                    Plotly.update('plot-A_W', {x: [trace1_A_W.x, trace2_A_W.x], y: [trace1_A_W.y, trace2_A_W.y]});
+
+                    step++;
+                })
+                .catch(console.error);
+        }
+
+        // Use the dynamic interval
+        setInterval(updateData, timeWindow);
+    </script>
+</body>
+</html>
