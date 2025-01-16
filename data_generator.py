@@ -4,9 +4,9 @@ from datetime import datetime, timedelta
 from bgp_features import BGPFeatures
 from constants import Constants
 
-GENERATED_DATA_FILENAME = f"generated_data/g3_rrc12_{Constants.TIME_WINDOW}_generated.csv"
-FROM_TIME = datetime.strptime("2023-06-09 00:10:00", "%Y-%m-%d %H:%M:%S")
-ROW_COUNT = 100000
+ROW_COUNT = 300
+GENERATED_DATA_FILENAME = f"generated_data/g3_{Constants.CHOSEN_COLLECTOR}_{Constants.TIME_WINDOW}_generated_{ROW_COUNT}.csv"
+FROM_TIME = datetime.strptime("2023-09-09 00:10:00", "%Y-%m-%d %H:%M:%S")
 TIME_OFFSET  = 7200
 UNTIL_TIME = FROM_TIME + timedelta(seconds=ROW_COUNT * Constants.TIME_WINDOW)
 
@@ -15,7 +15,7 @@ from_time=FROM_TIME.strftime("%Y-%m-%d %H:%M:%S")
 stream = pybgpstream.BGPStream(
     from_time=FROM_TIME.strftime("%Y-%m-%d %H:%M:%S"),
     until_time=UNTIL_TIME.strftime("%Y-%m-%d %H:%M:%S"),
-    collectors=["rrc12"]
+    collectors=[Constants.CHOSEN_COLLECTOR]
     )
 
 features = BGPFeatures()

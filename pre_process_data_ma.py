@@ -2,9 +2,8 @@ from constants import Constants
 import os
 import pandas as pd
 
-TRAIN_DATA_DIR = os.path.join(os.path.dirname(__file__), 'train_data')
-INPUT_FILE = os.path.join(TRAIN_DATA_DIR, f'g3_rrc12_{Constants.TIME_WINDOW}_generated.csv')
-OUTPUT_FILE = os.path.join(TRAIN_DATA_DIR, f'g3_rrc12_{Constants.TIME_WINDOW}_ma.csv')
+INPUT_FILE = os.path.join(os.path.dirname(__file__), f'generated_data/g3_rrc12_{Constants.TIME_WINDOW}_generated_300.csv')
+OUTPUT_FILE = os.path.join(os.path.dirname(__file__), f'test_data/new_new_test_data_{Constants.TIME_WINDOW}.csv')
 
 def calculate_moving_average(data, window_size=Constants.MA_WINDOW):
     """Calculate moving average for a pandas series"""

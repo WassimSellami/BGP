@@ -13,7 +13,7 @@ from sklearn.metrics import (
 import os
 
 TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'test_data')
-INPUT_FILE = os.path.join(TEST_DATA_DIR, f'test_data_{Constants.TIME_WINDOW}.csv')
+INPUT_FILE = os.path.join(TEST_DATA_DIR, f'new_new_test_data_{Constants.TIME_WINDOW}.csv')
 FEATURE_COLUMNS = [Constants.FEATURE_NB_A, Constants.FEATURE_NB_W, Constants.FEATURE_NB_A_W]
 
 def mean_absolute_percentage_error(y_true, y_pred):
