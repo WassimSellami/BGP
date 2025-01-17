@@ -18,7 +18,6 @@ CORS(app)
 MODEL_PATH = os.path.join('models', f'g3_lstm_{Constants.TIME_WINDOW}.h5')
 SCALER_PATH = os.path.join('scalers', f'g3_scaler_{Constants.TIME_WINDOW}.pkl')
 
-# Load model and scaler
 model = load_model(MODEL_PATH, compile=False)
 model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mse'])
 with open(SCALER_PATH, 'rb') as f:
