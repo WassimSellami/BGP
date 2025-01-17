@@ -31,7 +31,6 @@ def prepare_data(filename, feature_columns):
     
     return X_train, X_test, y_train, y_test, scaler
 
-# Build LSTM model
 def create_model(sequence_length, n_features):
     model = Sequential([
         LSTM(100, activation='relu', return_sequences=True, input_shape=(sequence_length, n_features)),
@@ -96,7 +95,7 @@ def train_and_evaluate():
     rmse = np.sqrt(mse)
     mape = np.mean(np.abs((y_test_actual - test_predictions) / y_test_actual)) * 100
     
-    metrics_file_path = 'prediction_results/train_metrics'
+    metrics_file_path = f'prediction_results/train_metrics_{Constants.TIME_WINDOW}'
     with open(metrics_file_path, 'w') as metrics_file:
         metrics_file.write(f"Mean Squared Error (MSE): {mse}\n")
         metrics_file.write(f"Root Mean Squared Error (RMSE): {rmse}\n")

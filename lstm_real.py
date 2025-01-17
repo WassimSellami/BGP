@@ -127,7 +127,7 @@ for elem in stream:
                 print(f"Prediction: {prediction}")
 
                 actual_values_A.append(nb_A_ma)
-                predicted_values_A.append(prediction[0][0])  # Accessing the first element correctly
+                predicted_values_A.append(prediction[0][0])
 
                 actual_values_W.append(nb_W_ma)
                 predicted_values_W.append(prediction[0][1])

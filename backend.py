@@ -24,7 +24,6 @@ model.compile(optimizer='adam', loss='mean_squared_error', metrics=['mse'])
 with open(SCALER_PATH, 'rb') as f:
     scaler = pickle.load(f)
 
-# Global variables to store state
 recent_records = []
 sequence_buffer = deque(maxlen=Constants.SEQUENCE_LENGTH)
 current_actual_A = 0
@@ -36,7 +35,6 @@ current_prediction_A_W = 0
 
 @app.route('/data')
 def get_data():
-    # Ensure all values are serializable as float
     return jsonify({
         "actual_A": float(current_actual_A),
         "prediction_A": float(current_prediction_A),
@@ -95,7 +93,6 @@ def bgp_collector():
                     prediction_reshaped = prediction.reshape(1, -1)
                     prediction = scaler.inverse_transform(prediction_reshaped)
 
-                    # Update current values and predictions
                     current_actual_A = nb_A_ma
                     current_prediction_A = prediction[0][0]
 

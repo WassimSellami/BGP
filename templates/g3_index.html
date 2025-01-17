@@ -5,58 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-time BGP Prediction</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .plot-container {
-            display: flex;
-            flex-direction: column;
-            gap: 40px;
-        }
-        .stat-box {
-            margin: 10px 0;
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>Real-time BGP Announcements & Withdrawals</h1>
+        <h1>Real-time BGP Announcements & Withdrawals Forecasting</h1>
         
-        <div class="plot-container">
-            <div id="plot-A" style="width:100%; height:400px;"></div>
-            <div id="plot-W" style="width:100%; height:400px;"></div>
-            <div id="plot-A_W" style="width:100%; height:400px;"></div>
+        <div id="plot-container">
+            <div class="plot-with-stats">
+                <div id="plot-A" class="plot"></div>
+                <div class="stats">
+                    <div>Current Value (A): <span id="current-A">-</span></div>
+                    <div>Prediction (A): <span id="prediction-A">-</span></div>
+                    <div>Mean Absolute Error (A): <span id="metric-A">-</span></div>
+                    <div>MAE Percentage (A): <span id="percent-A">-</span></div>
+                </div>
+            </div>
+        
+            <div class="plot-with-stats">
+                <div id="plot-W" class="plot"></div>
+                <div class="stats">
+                    <div>Current Value (W): <span id="current-W">-</span></div>
+                    <div>Prediction (W): <span id="prediction-W">-</span></div>
+                    <div>Mean Absolute Error (W): <span id="metric-W">-</span></div>
+                    <div>MAE Percentage (W): <span id="percent-W">-</span></div>
+                </div>
+            </div>
+        
+            <div class="plot-with-stats">
+                <div id="plot-A_W" class="plot"></div>
+                <div class="stats">
+                    <div>Current Value (A_W): <span id="current-A_W">-</span></div>
+                    <div>Prediction (A_W): <span id="prediction-A_W">-</span></div>
+                    <div>Mean Absolute Error (A_W): <span id="metric-A_W">-</span></div>
+                    <div>MAE Percentage (A_W): <span id="percent-A_W">-</span></div>
+                </div>
+            </div>
         </div>
         
-        <div class="stats">
-            <div class="stat-box">
-                <div class="stat-label">Current Value (A):</div>
-                <div class="stat-value" id="current-A">-</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Prediction (A):</div>
-                <div class="stat-value" id="prediction-A">-</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Current Value (W):</div>
-                <div class="stat-value" id="current-W">-</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Prediction (W):</div>
-                <div class="stat-value" id="prediction-W">-</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Current Value (A_W):</div>
-                <div class="stat-value" id="current-A_W">-</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-label">Prediction (A_W):</div>
-                <div class="stat-value" id="prediction-A_W">-</div>
-            </div>
-        </div>
+        
+        
     </div>
 
     <script>
@@ -142,42 +130,128 @@
 
         let step = 0;
 
-        function updateData() {
-            fetch('http://localhost:3000/data')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('current-A').textContent = data.actual_A.toFixed(2);
-                    document.getElementById('prediction-A').textContent = data.prediction_A.toFixed(2);
-                    document.getElementById('current-W').textContent = data.actual_W.toFixed(2);
-                    document.getElementById('prediction-W').textContent = data.prediction_W.toFixed(2);
-                    document.getElementById('current-A_W').textContent = data.actual_A_W.toFixed(2);
-                    document.getElementById('prediction-A_W').textContent = data.prediction_A_W.toFixed(2);
+let cumulativeErrorA = 0;
+let cumulativeErrorW = 0;
+let cumulativeErrorA_W = 0;
 
-                    trace1_A.x.push(step);
-                    trace1_A.y.push(data.actual_A);
-                    trace2_A.x.push(step);
-                    trace2_A.y.push(data.prediction_A);
+let totalPoints = 0;
 
-                    trace1_W.x.push(step);
-                    trace1_W.y.push(data.actual_W);
-                    trace2_W.x.push(step);
-                    trace2_W.y.push(data.prediction_W);
+let cumulativeError_A = 0;
+let cumulativeError_W = 0;
+let cumulativeError_A_W = 0;
 
-                    trace1_A_W.x.push(step);
-                    trace1_A_W.y.push(data.actual_A_W);
-                    trace2_A_W.x.push(step);
-                    trace2_A_W.y.push(data.prediction_A_W);
+let currentWindow_A = [];
+let currentWindow_W = [];
+let currentWindow_A_W = [];
 
-                    Plotly.update('plot-A', {x: [trace1_A.x, trace2_A.x], y: [trace1_A.y, trace2_A.y]});
-                    Plotly.update('plot-W', {x: [trace1_W.x, trace2_W.x], y: [trace1_W.y, trace2_W.y]});
-                    Plotly.update('plot-A_W', {x: [trace1_A_W.x, trace2_A_W.x], y: [trace1_A_W.y, trace2_A_W.y]});
+let MAX_POINTS = 100;
 
-                    step++;
-                })
-                .catch(console.error);
-        }
+function updateData() {
+    fetch('http://localhost:3000/data')
+        .then(response => response.json())
+        .then(data => {
+            const newError_A = Math.abs(data.actual_A - data.prediction_A);
+            const newError_W = Math.abs(data.actual_W - data.prediction_W);
+            const newError_A_W = Math.abs(data.actual_A_W - data.prediction_A_W);
 
-        // Use the dynamic interval
+            cumulativeError_A += newError_A;
+            cumulativeError_W += newError_W;
+            cumulativeError_A_W += newError_A_W;
+
+            currentWindow_A.push(newError_A);
+            currentWindow_W.push(newError_W);
+            currentWindow_A_W.push(newError_A_W);
+
+            if (currentWindow_A.length > MAX_POINTS) {
+                cumulativeError_A -= currentWindow_A.shift();
+            }
+            if (currentWindow_W.length > MAX_POINTS) {
+                cumulativeError_W -= currentWindow_W.shift();
+            }
+            if (currentWindow_A_W.length > MAX_POINTS) {
+                cumulativeError_A_W -= currentWindow_A_W.shift();
+            }
+
+            const mae_A = (cumulativeError_A / currentWindow_A.length).toFixed(2);
+            const mae_W = (cumulativeError_W / currentWindow_W.length).toFixed(2);
+            const mae_A_W = (cumulativeError_A_W / currentWindow_A_W.length).toFixed(2);
+
+            const percent_A = ((mae_A / data.actual_A) * 100).toFixed(2);
+            const percent_W = ((mae_W / data.actual_W) * 100).toFixed(2);
+            const percent_A_W = ((mae_A_W / data.actual_A_W) * 100).toFixed(2);
+
+            document.getElementById('current-A').textContent = data.actual_A.toFixed(2);
+            document.getElementById('prediction-A').textContent = data.prediction_A.toFixed(2);
+            document.getElementById('metric-A').textContent = mae_A;
+            document.getElementById('percent-A').textContent = percent_A + "%";
+
+            document.getElementById('current-W').textContent = data.actual_W.toFixed(2);
+            document.getElementById('prediction-W').textContent = data.prediction_W.toFixed(2);
+            document.getElementById('metric-W').textContent = mae_W;
+            document.getElementById('percent-W').textContent = percent_W + "%";
+
+            document.getElementById('current-A_W').textContent = data.actual_A_W.toFixed(2);
+            document.getElementById('prediction-A_W').textContent = data.prediction_A_W.toFixed(2);
+            document.getElementById('metric-A_W').textContent = mae_A_W;
+            document.getElementById('percent-A_W').textContent = percent_A_W + "%";
+
+            trace1_A.x.push(step);
+            trace1_A.y.push(data.actual_A);
+            trace2_A.x.push(step);
+            trace2_A.y.push(data.prediction_A);
+
+            trace1_W.x.push(step);
+            trace1_W.y.push(data.actual_W);
+            trace2_W.x.push(step);
+            trace2_W.y.push(data.prediction_W);
+
+            trace1_A_W.x.push(step);
+            trace1_A_W.y.push(data.actual_A_W);
+            trace2_A_W.x.push(step);
+            trace2_A_W.y.push(data.prediction_A_W);
+
+            if (trace1_A.x.length > MAX_POINTS) {
+                trace1_A.x.shift();
+                trace1_A.y.shift();
+                trace2_A.x.shift();
+                trace2_A.y.shift();
+            }
+
+            if (trace1_W.x.length > MAX_POINTS) {
+                trace1_W.x.shift();
+                trace1_W.y.shift();
+                trace2_W.x.shift();
+                trace2_W.y.shift();
+            }
+
+            if (trace1_A_W.x.length > MAX_POINTS) {
+                trace1_A_W.x.shift();
+                trace1_A_W.y.shift();
+                trace2_A_W.x.shift();
+                trace2_A_W.y.shift();
+            }
+
+            Plotly.update('plot-A', { x: [trace1_A.x, trace2_A.x], y: [trace1_A.y, trace2_A.y] });
+            Plotly.update('plot-W', { x: [trace1_W.x, trace2_W.x], y: [trace1_W.y, trace2_W.y] });
+            Plotly.update('plot-A_W', { x: [trace1_A_W.x, trace2_A_W.x], y: [trace1_A_W.y, trace2_A_W.y] });
+
+            step++;
+            totalPoints++;
+
+        })
+        .catch(console.error);
+}
+
+function calculateMAE(actualValues, predictedValues) {
+    const length = actualValues.length;
+    let cumulativeError = 0;
+    for (let i = 0; i < length; i++) {
+        cumulativeError += Math.abs(actualValues[i] - predictedValues[i]);
+    }
+    return cumulativeError / length;
+}
+
+
         setInterval(updateData, timeWindow);
     </script>
 </body>
